@@ -24,8 +24,8 @@
 namespace cityman {
 namespace power {
 
-/* CAF msm8992.dtsi a57-speedbin0-v0 / qcom,vdd-apps-rstr. Not 1960000. */
-static constexpr int kA57CeilingKhz = 1824000;
+/* MSM8994 cityman speedbin supports 1958400 kHz (cpuinfo_max_freq). */
+static constexpr int kA57CeilingKhz = 1958400;
 
 struct ClusterOpp {
   int policy_cpu = -1;

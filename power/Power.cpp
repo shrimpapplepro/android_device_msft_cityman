@@ -357,7 +357,8 @@ Return<void> Power::getPlatformLowPowerStats(getPlatformLowPowerStats_cb _hidl_c
         size_t nl = raw.find('\n', pos);
         std::string line = raw.substr(pos, nl == std::string::npos ? std::string::npos : nl - pos);
         pos = (nl == std::string::npos) ? raw.size() : nl + 1;
-        if (line.compare(0, 9, "RPM Mode:") == 0) {
+        if (line.compare(0, 9, "RPM_Mode:") == 0 ||
+            line.compare(0, 9, "RPM Mode:") == 0) {
             flush();
             cur.name = line.substr(9);
             have = true;
@@ -370,9 +371,13 @@ Return<void> Power::getPlatformLowPowerStats(getPlatformLowPowerStats_cb _hidl_c
             p++;
         unsigned long long ull = 0;
         int count = 0;
-        if (sscanf(p, "count:%d", &count) == 1) {
+        /* Kernel format: "vlow_count:0" / "vmin_count:40076" */
+        if (sscanf(p, "%*[a-z_]count:%d", &count) == 1 ||
+            sscanf(p, "count:%d", &count) == 1) {
             cur.totalTransitions = static_cast<uint64_t>(count);
-        } else if (sscanf(p, "actual last sleep(msec):%llu", &ull) == 1) {
+        /* Kernel format: "accumulated_vlow_time(msec):48213000" */
+        } else if (sscanf(p, "accumulated_%*[a-z_]time(msec):%llu", &ull) == 1 ||
+                   sscanf(p, "actual last sleep(msec):%llu", &ull) == 1) {
             cur.residencyInMsecSinceBoot = ull;
         }
     }

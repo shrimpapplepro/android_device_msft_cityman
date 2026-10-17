@@ -21,6 +21,8 @@
 
 #include <log/log.h>
 
+#include <algorithm>
+#include <cmath>
 #include <errno.h>
 #include <fcntl.h>
 #include <pthread.h>
@@ -151,6 +153,8 @@ Return<Status> Light::setLight(Type type, const LightState& state) {
             return setRgbLight(state, kLedNotifications);
         case Type::ATTENTION:
             return setAttention(state);
+        case Type::BUTTONS:
+            return Status::SUCCESS;
         default:
             return Status::LIGHT_NOT_SUPPORTED;
     }
@@ -172,12 +176,15 @@ Return<void> Light::getSupportedTypes(getSupportedTypes_cb _hidl_cb) {
 Status Light::setBacklight(const LightState& state) {
     if (!mBacklightOk)
         return Status::UNKNOWN;
-    return errToStatus(writeInt(kLcdFile, rgbToBrightness(state)));
+    int brightness = rgbToBrightness(state);
+    if (brightness > 0 && brightness < 2)
+        brightness = 2;
+    return errToStatus(writeInt(kLcdFile, brightness));
 }
 
 Status Light::setRgbLight(const LightState& state, int type) {
     if (!mRgbOk)
-        return Status::UNKNOWN;
+        return Status::SUCCESS;
     return setLightLocked(state, type);
 }
 

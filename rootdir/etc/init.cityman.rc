@@ -112,6 +112,9 @@ on early-boot
     exec - root root system -- /vendor/bin/init.qcom.devwait.sh
 
 on boot
+    # Disable mdss_fb backlight_dimmer on Duke AMOLED (fixes premature 255 saturation/clamping)
+    write /sys/module/mdss_fb/parameters/backlight_dimmer 0
+
     # execute script to set initial CPU settings
     # don't run as a service to avoid race conditions
     exec - root root system -- /vendor/bin/init.cityman.power.sh
@@ -413,6 +416,7 @@ service loc_launcher /vendor/bin/loc_launcher
 
 service cnss-daemon /vendor/bin/cnss-daemon -n -l
     class late_start
+    disabled
 
 service qseecomd /vendor/bin/qseecomd
     class core

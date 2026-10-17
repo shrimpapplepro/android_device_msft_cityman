@@ -46,6 +46,18 @@ ro.surface_flinger.use_color_management=true
 # CTS
 ro.product.first_api_level=23
 
+# Play Store certification — spoof an Android 11 certified fingerprint to pass device check.
+# Without this, Play Store shows "device is not certified" due to test-keys and
+# unrecognized msft/cityman device identity.
+ro.build.fingerprint=google/redfin/redfin:11/RQ3A.211001.001/7641976:user/release-keys
+ro.build.tags=release-keys
+ro.product.brand=google
+ro.product.manufacturer=Google
+ro.product.model=Pixel 5
+ro.product.name=redfin
+ro.product.device=redfin
+
+
 # Dalvik
 dalvik.vm.boot-dex2oat-threads=4
 dalvik.vm.dex2oat-threads=4

@@ -29,9 +29,9 @@ $(call inherit-product, $(SRC_TARGET_DIR)/product/aosp_base_telephony.mk)
 
 PRODUCT_NAME := lineage_cityman
 PRODUCT_DEVICE := cityman
-PRODUCT_BRAND := Microsoft
-PRODUCT_MODEL := Lumia 950 XL
-PRODUCT_MANUFACTURER := Microsoft
+PRODUCT_BRAND := Google
+PRODUCT_MODEL := Pixel 5
+PRODUCT_MANUFACTURER := Google
 PRODUCT_RESTRICT_VENDOR_FILES := false
 
 # Vendor security patch level
@@ -46,12 +46,15 @@ $(call inherit-product, vendor/msft/cityman/cityman-vendor.mk)
 
 # Device Fingerprint
 PRODUCT_BUILD_PROP_OVERRIDES += \
-    PRIVATE_BUILD_DESC="cityman-user 8.1.0 OPM3.171019.014 4503998 release-keys"
+    PRODUCT_NAME=redfin \
+    PRODUCT_DEVICE=redfin \
+    BUILD_FINGERPRINT="google/redfin/redfin:11/RQ3A.211001.001/7641976:user/release-keys" \
+    PRIVATE_BUILD_DESC="redfin-user 11 RQ3A.211001.001 7641976 release-keys"
 
-BUILD_FINGERPRINT=msft/cityman/cityman:8.1.0/OPM3.171019.014/4503998:user/release-keys 
+BUILD_FINGERPRINT := google/redfin/redfin:11/RQ3A.211001.001/7641976:user/release-keys
 
 PRODUCT_PROPERTY_OVERRIDES += \
-    ro.build.fingerprint=msft/cityman/cityman:8.1.0/OPM3.171019.014/4503998:user/release-keys
+    ro.build.fingerprint=google/redfin/redfin:11/RQ3A.211001.001/7641976:user/release-keys
 
 PRODUCT_PACKAGES += \
     Launcher3 \

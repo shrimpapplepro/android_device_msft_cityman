@@ -55,50 +55,30 @@ write /sys/devices/system/cpu/cpu4/cpufreq/scaling_max_freq 960000
 write /sys/module/msm_performance/parameters/cpu_max_freq "4:960000 5:960000 6:960000 7:960000"
 
 # Disable CPU retention
-write /sys/module/lpm_levels/system/a53/cpu0/retention/idle_enabled 0
-write /sys/module/lpm_levels/system/a53/cpu1/retention/idle_enabled 0
-write /sys/module/lpm_levels/system/a53/cpu2/retention/idle_enabled 0
-write /sys/module/lpm_levels/system/a53/cpu3/retention/idle_enabled 0
-write /sys/module/lpm_levels/system/a57/cpu4/retention/idle_enabled 0
-write /sys/module/lpm_levels/system/a57/cpu5/retention/idle_enabled 0
-write /sys/module/lpm_levels/system/a57/cpu6/retention/idle_enabled 0
-write /sys/module/lpm_levels/system/a57/cpu7/retention/idle_enabled 0
+# write /sys/module/lpm_levels/system/a53/cpu0/retention/idle_enabled 0
+# write /sys/module/lpm_levels/system/a53/cpu1/retention/idle_enabled 0
+# write /sys/module/lpm_levels/system/a53/cpu2/retention/idle_enabled 0
+# write /sys/module/lpm_levels/system/a53/cpu3/retention/idle_enabled 0
+# write /sys/module/lpm_levels/system/a57/cpu4/retention/idle_enabled 0
+# write /sys/module/lpm_levels/system/a57/cpu5/retention/idle_enabled 0
+# write /sys/module/lpm_levels/system/a57/cpu6/retention/idle_enabled 0
+# write /sys/module/lpm_levels/system/a57/cpu7/retention/idle_enabled 0
 
 # Disable L2 retention
-write /sys/module/lpm_levels/system/a53/a53-l2-retention/idle_enabled 0
-write /sys/module/lpm_levels/system/a57/a57-l2-retention/idle_enabled 0
+# write /sys/module/lpm_levels/system/a53/a53-l2-retention/idle_enabled 0
+# write /sys/module/lpm_levels/system/a57/a57-l2-retention/idle_enabled 0
 
 # configure governor settings for little cluster
-write /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor interactive
-restorecon -R /sys/devices/system/cpu # must restore after interactive
-write /sys/devices/system/cpu/cpu0/cpufreq/interactive/use_sched_load 1
-write /sys/devices/system/cpu/cpu0/cpufreq/interactive/use_migration_notif 1
-write /sys/devices/system/cpu/cpu0/cpufreq/interactive/above_hispeed_delay 19000
-write /sys/devices/system/cpu/cpu0/cpufreq/interactive/go_hispeed_load 99
-write /sys/devices/system/cpu/cpu0/cpufreq/interactive/timer_rate 20000
-write /sys/devices/system/cpu/cpu0/cpufreq/interactive/hispeed_freq 960000
-write /sys/devices/system/cpu/cpu0/cpufreq/interactive/io_is_busy 1
-write /sys/devices/system/cpu/cpu0/cpufreq/interactive/target_loads "65 460800:75 960000:80"
-write /sys/devices/system/cpu/cpu0/cpufreq/interactive/min_sample_time 40000
-write /sys/devices/system/cpu/cpu0/cpufreq/interactive/max_freq_hysteresis 80000
+write /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor schedutil
+restorecon -R /sys/devices/system/cpu
 write /sys/devices/system/cpu/cpu0/cpufreq/scaling_min_freq 384000
 
 # online CPU4
 write /sys/devices/system/cpu/cpu4/online 1
 
 # configure governor settings for big cluster
-write /sys/devices/system/cpu/cpu4/cpufreq/scaling_governor interactive
-restorecon -R /sys/devices/system/cpu # must restore after interactive
-write /sys/devices/system/cpu/cpu4/cpufreq/interactive/use_sched_load 1
-write /sys/devices/system/cpu/cpu4/cpufreq/interactive/use_migration_notif 1
-write /sys/devices/system/cpu/cpu4/cpufreq/interactive/above_hispeed_delay 19000
-write /sys/devices/system/cpu/cpu4/cpufreq/interactive/go_hispeed_load 99
-write /sys/devices/system/cpu/cpu4/cpufreq/interactive/timer_rate 20000
-write /sys/devices/system/cpu/cpu4/cpufreq/interactive/hispeed_freq 1248000
-write /sys/devices/system/cpu/cpu4/cpufreq/interactive/io_is_busy 1
-write /sys/devices/system/cpu/cpu4/cpufreq/interactive/target_loads "70 960000:80 1248000:85"
-write /sys/devices/system/cpu/cpu4/cpufreq/interactive/min_sample_time 40000
-write /sys/devices/system/cpu/cpu4/cpufreq/interactive/max_freq_hysteresis 80000
+write /sys/devices/system/cpu/cpu4/cpufreq/scaling_governor schedutil
+restorecon -R /sys/devices/system/cpu
 write /sys/devices/system/cpu/cpu4/cpufreq/scaling_min_freq 384000
 
 # restore A57's max
@@ -113,15 +93,15 @@ write /sys/devices/system/cpu/cpu7/online 1
 write /sys/module/msm_performance/parameters/cpu_max_freq "4:4294967295 5:4294967295 6:4294967295 7:4294967295"
 
 # input boost configuration (kernel cpu-boost, fires on every touch event).
-# 1.5 s of A57 >= 1248000 plus HMP sched boost ensures smooth UI flings on WQHD.
-write /sys/module/cpu_boost/parameters/input_boost_freq "0:960000 4:1248000 5:1248000 6:1248000 7:1248000"
-write /sys/module/cpu_boost/parameters/input_boost_ms 1500
+# Boost policy CPU only; scheduler handles the rest. 300ms matches INTERACTION hint.
+write /sys/module/cpu_boost/parameters/input_boost_freq "0:960000 4:1248000"
+write /sys/module/cpu_boost/parameters/input_boost_ms 300
 write /sys/module/cpu_boost/parameters/sched_boost_on_input Y
 
 # Setting B.L scheduler parameters
 write /proc/sys/kernel/sched_migration_fixup 1
-write /proc/sys/kernel/sched_upmigrate 95
-write /proc/sys/kernel/sched_downmigrate 85
+write /proc/sys/kernel/sched_upmigrate 75
+write /proc/sys/kernel/sched_downmigrate 60
 write /proc/sys/kernel/sched_freq_inc_notify 400000
 write /proc/sys/kernel/sched_freq_dec_notify 400000
 
@@ -136,16 +116,18 @@ get-set-forall  /sys/class/devfreq/qcom,cpubw*/governor bw_hwmon
 # Disable sched_boost
 write /proc/sys/kernel/sched_boost 0
 
-# re-enable thermal and BCL hotplug
+# re-enable thermal core control
 write /sys/module/msm_thermal/core_control/enabled 1
+# Disable Qualcomm BCL to prevent false-positive battery voltage dips from clamping big cores to 768 MHz
+get-set-forall /sys/devices/soc.0/qcom,bcl.*/freq_max 1958400
 get-set-forall /sys/devices/soc.0/qcom,bcl.*/mode disable
-get-set-forall /sys/devices/soc.0/qcom,bcl.*/hotplug_mask $bcl_hotplug_mask
-get-set-forall /sys/devices/soc.0/qcom,bcl.*/hotplug_soc_mask $bcl_hotplug_soc_mask
-get-set-forall /sys/devices/soc.0/qcom,bcl.*/mode enable
 
 # GPU wake level 4 (300MHz), same as qcom,initial-pwrlevel.
 # Adreno 430 on the 1440x2560 Cityman panel benefits from waking at 300MHz.
 write /sys/class/kgsl/kgsl-3d0/default_pwrlevel 4
+
+# VM tuning — fix dentry/inode cache hoarding (default was 10, far too low)
+write /proc/sys/vm/vfs_cache_pressure 100
 
 # Power HAL runs as system. Nodes it writes (A57 online, interactive created).
 chown system system /sys/devices/system/cpu/cpu0/cpufreq/scaling_min_freq
@@ -156,10 +138,6 @@ chmod 0664 /sys/devices/system/cpu/cpu0/cpufreq/scaling_min_freq
 chmod 0664 /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq
 chmod 0664 /sys/devices/system/cpu/cpu4/cpufreq/scaling_min_freq
 chmod 0664 /sys/devices/system/cpu/cpu4/cpufreq/scaling_max_freq
-chown system system /sys/devices/system/cpu/cpu0/cpufreq/interactive/hispeed_freq
-chown system system /sys/devices/system/cpu/cpu4/cpufreq/interactive/hispeed_freq
-chmod 0664 /sys/devices/system/cpu/cpu0/cpufreq/interactive/hispeed_freq
-chmod 0664 /sys/devices/system/cpu/cpu4/cpufreq/interactive/hispeed_freq
 chown system system /sys/module/cpu_boost/parameters/input_boost_freq
 chown system system /sys/module/cpu_boost/parameters/input_boost_ms
 chmod 0664 /sys/module/cpu_boost/parameters/input_boost_freq

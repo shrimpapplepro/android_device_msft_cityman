@@ -199,6 +199,36 @@ static void query_qmi_dms(void) {
     p_qmi_client_release(dms_client);
 }
 
+static void query_qmi_uim(void) {
+    printf("\n--- QMI UIM Queries ---\n");
+    qmi_idl_service_object_type uim_obj = get_service_obj(p_uim_get_service_object, 1, 49, 6);
+    qmi_client_type uim_client = connect_service(uim_obj);
+    if (!uim_client) {
+        printf("Failed to connect to UIM service\n");
+        return;
+    }
+
+    uint8_t resp[1024];
+    uint32_t resp_len = 0;
+
+    // Get Slot Status (0x002D)
+    if (p_qmi_client_send_raw_msg_sync(uim_client, 0x002D, NULL, 0, resp, sizeof(resp), &resp_len, 3000) == 0) {
+        print_tlvs("UIM Get Slot Status (0x002D)", resp, resp_len);
+    }
+
+    // Get Card Status (0x002F)
+    if (p_qmi_client_send_raw_msg_sync(uim_client, 0x002F, NULL, 0, resp, sizeof(resp), &resp_len, 3000) == 0) {
+        print_tlvs("UIM Get Card Status (0x002F)", resp, resp_len);
+    }
+
+    // Get Configuration (0x002E)
+    if (p_qmi_client_send_raw_msg_sync(uim_client, 0x002E, NULL, 0, resp, sizeof(resp), &resp_len, 3000) == 0) {
+        print_tlvs("UIM Get Configuration (0x002E)", resp, resp_len);
+    }
+
+    p_qmi_client_release(uim_client);
+}
+
 static void query_at_port(const char *port) {
     printf("\n--- AT Queries on %s ---\n", port);
     int fd = open(port, O_RDWR | O_NOCTTY | O_NONBLOCK);
@@ -314,6 +344,7 @@ int main(int argc, char **argv) {
     if (load_qmi() == 0) {
         query_qmi_dms();
         query_qmi_nas();
+        query_qmi_uim();
     }
 
     query_at_port("/dev/smd11");

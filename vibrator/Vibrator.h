@@ -49,6 +49,7 @@ class Vibrator : public IVibrator {
     bool mHasAmplitude = false;
     int mVtgMin = 0;
     int mVtgMax = 0;
+    const char *mVtgPath = nullptr;
 };
 
 }  // namespace implementation

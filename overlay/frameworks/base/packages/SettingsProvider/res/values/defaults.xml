@@ -17,14 +17,14 @@
  */
 -->
 <resources>
-    <!-- Set the automatic brightness mode on by default -->
-    <bool name="def_screen_brightness_automatic_mode">true</bool>
+    <!-- Set the automatic brightness mode off by default (manual brightness is smooth and responsive) -->
+    <bool name="def_screen_brightness_automatic_mode">false</bool>
 
-    <!-- Default screen brightness, from 0 to 255. 78 is 30%. -->
-    <integer name="def_screen_brightness">78</integer>
+    <!-- Default screen brightness, from 0 to 255. 102 is 40%. -->
+    <integer name="def_screen_brightness">102</integer>
 
-    <!-- 30 seconds for default screen timeout -->
-    <integer name="def_screen_off_timeout">30000</integer>
+    <!-- 60 seconds for default screen timeout -->
+    <integer name="def_screen_off_timeout">60000</integer>
 
     <!-- Set the notificaiton pulse to be off by default. -->
     <bool name="def_notification_pulse">false</bool>

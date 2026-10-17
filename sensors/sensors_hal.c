@@ -155,7 +155,8 @@
 #define APDS_ENABLE_AEN 0x02
 #define APDS_ENABLE_PEN 0x04
 #define APDS_ID_VAL 0x39
-#define APDS_PROX_NEAR 80
+#define APDS_PROX_THRESH_NEAR 160
+#define APDS_PROX_THRESH_FAR  100
 
 static const struct sensor_t k_list[] = {
     {
@@ -1369,7 +1370,15 @@ static int apds_read_both(int *got_prox, sensors_event_t *prox, int *got_light,
   ch0 = (uint16_t)(raw[0] | (raw[1] << 8));
   ch1 = (uint16_t)(raw[2] | (raw[3] << 8));
   pdata = (uint16_t)(raw[4] | (raw[5] << 8));
-  distance = pdata >= APDS_PROX_NEAR ? 0.0f : 5.0f;
+  if (!g_have_prox) {
+    distance = (pdata >= APDS_PROX_THRESH_NEAR) ? 0.0f : 5.0f;
+  } else if (g_last_prox > 2.5f) {
+    /* Currently FAR: require high threshold to switch to NEAR */
+    distance = (pdata >= APDS_PROX_THRESH_NEAR) ? 0.0f : 5.0f;
+  } else {
+    /* Currently NEAR: require dropping below low threshold to switch to FAR */
+    distance = (pdata < APDS_PROX_THRESH_FAR) ? 5.0f : 0.0f;
+  }
   lux = apds_lux(ch0, ch1);
   if ((g_enabled & (1 << HANDLE_PROX)) &&
       (!g_have_prox || distance != g_last_prox)) {
@@ -1378,6 +1387,7 @@ static int apds_read_both(int *got_prox, sensors_event_t *prox, int *got_light,
     g_last_prox = distance;
     g_have_prox = 1;
     *got_prox = 1;
+    ALOGI("prox event: pdata=%u distance=%.1f", pdata, distance);
   }
   if ((g_enabled & (1 << HANDLE_LIGHT)) &&
       (!g_have_light || fabsf(lux - g_last_light) >= 1.0f)) {

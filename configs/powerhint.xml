@@ -57,16 +57,17 @@
     <Freq khz="1632000"/>
     <Freq khz="1689600"/>
     <Freq khz="1824000"/>
+    <Freq khz="1958400"/>
   </Opp>
 
   <Defaults>
     <Little min_khz="384000" hispeed_khz="960000"/>
-    <Big min_khz="384000" hispeed_khz="1248000" max_khz="1824000"/>
+    <Big min_khz="384000" hispeed_khz="1248000" max_khz="1958400"/>
     <Gpu min_pwrlevel="5" max_pwrlevel="0" default_pwrlevel="4"/>
-    <InputBoost freq="0:960000 4:1248000 5:1248000" ms="1500"/>
+    <InputBoost freq="0:960000 4:1248000" ms="300"/>
   </Defaults>
 
-  <Hint name="INTERACTION" duration_ms="1500">
+  <Hint name="INTERACTION" duration_ms="300">
     <Little min_khz="960000"/>
     <Big min_khz="1248000"/>
     <Gpu min_pwrlevel="4"/>
@@ -76,7 +77,7 @@
     <Little min_khz="960000"/>
     <Big min_khz="1248000"/>
     <Gpu min_pwrlevel="4" max_pwrlevel="0"/>
-    <InputBoost freq="0:960000 4:1248000 5:1248000" ms="2000"/>
+    <InputBoost freq="0:960000 4:1248000" ms="2000"/>
   </Hint>
 
   <Hint name="VIDEO_ENCODE">
@@ -86,7 +87,7 @@
 
   <Hint name="LOW_POWER">
     <Little max_khz="960000"/>
-    <Big max_khz="768000"/>
+    <Big max_khz="1248000"/>
     <Gpu max_pwrlevel="5"/>
   </Hint>
 

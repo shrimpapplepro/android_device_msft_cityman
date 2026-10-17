@@ -375,6 +375,11 @@
     <ctl name="SLIMBUS_DL_HL Switch" value="0" />
     <!-- ADSP testfwk end-->
 
+    <!-- TAS2552 Speaker Amplifier defaults -->
+    <ctl name="TAS2552 Input Channel Mux" value="Right" />
+    <ctl name="TAS2552 Volume" value="15" />
+    <ctl name="TAS2552 Mute" value="1" />
+
     <!-- These are audio route (FE to BE) specific mixer settings -->
     <path name="audio-tts-playback">
         <ctl name="SLIMBUS_0_RX Audio Mixer MultiMedia2" value="1" />
@@ -385,6 +390,7 @@
     </path>
 
     <path name="deep-buffer-playback speaker">
+        <path name="deep-buffer-playback" />
         <ctl name="QUAT_MI2S_RX Audio Mixer MultiMedia1" value="1" />
     </path>
 
@@ -452,6 +458,7 @@
     </path>
 
     <path name="low-latency-playback speaker">
+        <path name="low-latency-playback" />
         <ctl name="QUAT_MI2S_RX Audio Mixer MultiMedia5" value="1" />
     </path>
 
@@ -504,6 +511,7 @@
     </path>
 
     <path name="audio-ull-playback speaker">
+        <path name="audio-ull-playback" />
         <ctl name="QUAT_MI2S_RX Audio Mixer MultiMedia3" value="1" />
     </path>
 
@@ -555,6 +563,7 @@
     </path>
 
     <path name="compress-offload-playback speaker">
+        <path name="compress-offload-playback" />
         <ctl name="QUAT_MI2S_RX Audio Mixer MultiMedia4" value="1" />
     </path>
 
@@ -1672,13 +1681,35 @@
     </path>
 
     <path name="speaker-gain-default">
-        <ctl name="TAS2552 Volume" value="18" />
+        <ctl name="TAS2552 Volume" value="15" />
     </path>
 
     <path name="speaker">
         <ctl name="QUAT MI2S RX Format" value="LPCM" />
         <ctl name="TAS2552 Mute" value="0" />
+        <ctl name="TAS2552 Input Channel Mux" value="Right" />
         <path name="speaker-gain-default" />
+        <!-- Front Earpiece for Left Channel (Dual Stereo Speakers) -->
+        <ctl name="SLIM RX1 MUX" value="AIF1_PB" />
+        <ctl name="SLIM_0_RX Channels" value="Two" />
+        <ctl name="RX1 MIX1 INP1" value="RX1" />
+        <ctl name="CLASS_H_DSM MUX" value="DSM_HPHL_RX1" />
+        <ctl name="DAC1 Switch" value="1" />
+        <ctl name="RX1 Digital Volume" value="84" />
+    </path>
+
+    <path name="speaker-reverse">
+        <ctl name="QUAT MI2S RX Format" value="LPCM" />
+        <ctl name="TAS2552 Mute" value="0" />
+        <ctl name="TAS2552 Input Channel Mux" value="Left" />
+        <path name="speaker-gain-default" />
+        <!-- Front Earpiece for Right Channel (Reverse Stereo) -->
+        <ctl name="SLIM RX1 MUX" value="AIF1_PB" />
+        <ctl name="SLIM_0_RX Channels" value="Two" />
+        <ctl name="RX1 MIX1 INP1" value="RX2" />
+        <ctl name="CLASS_H_DSM MUX" value="DSM_HPHL_RX1" />
+        <ctl name="DAC1 Switch" value="1" />
+        <ctl name="RX1 Digital Volume" value="84" />
     </path>
 
     <path name="speaker-liquid">
@@ -1904,6 +1935,7 @@
     <path name="speaker-and-headphones">
         <path name="headphones" />
         <path name="speaker" />
+        <ctl name="DAC1 Switch" value="0" />
         <ctl name="HPHL Volume" value="12" />
         <ctl name="HPHR Volume" value="12" />
         <ctl name="RX1 Digital Volume" value="66" />

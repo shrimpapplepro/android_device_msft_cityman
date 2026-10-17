@@ -23,7 +23,9 @@ Device tree and hardware support for the Microsoft Lumia 950 XL (`cityman`) powe
   - Bluetooth SCO (Voice calling over Bluetooth headsets and car kits, 8kHz NB & 16kHz WB).
   - In-call dialpad DTMF tones and ringback audio.
 - **Audio Playback & Recording**:
-  - Loudspeaker media playback (TAS2553 smart amplifier on Quaternary MI2S).
+  - **Dual-Speaker True Stereo**: High-fidelity stereo playback utilizing both the front earpiece (Left channel on WCD9330 codec / `SLIMBUS_0_RX`) and the rear loudspeaker (Right channel on TI TAS2552 smart amplifier / `QUAT_MI2S_RX`).
+  - Distortion-free playback tuning with dedicated Right-channel routing and calibrated gain (eliminating mono clipping and crackling).
+  - Dynamic stereo orientation reversal (`speaker-reverse`) in landscape mode.
   - 3.5mm Headphone Jack audio playback and headset microphone recording.
   - Four calibrated digital microphones (`dmic1`-`dmic4`) for ambient and directional capture.
   - Bluetooth A2DP audio streaming with `hwbinder` HAL transport.
@@ -42,6 +44,8 @@ Device tree and hardware support for the Microsoft Lumia 950 XL (`cityman`) powe
 - **Power & Battery**:
   - 13W USB Fast Charging with safety timer protections.
   - Precise battery fuel gauge reporting for Microsoft BV-T4D 3340mAh battery via PMI8994.
+  - Energy-aware power tuning: `schedutil` governor, restored CPU retention/L2 idle states, and optimized interactive boost durations (100ms) to ensure cool idle thermals (~34°C) and extended battery life.
+  - Resolved `android.hardware.audio.service` runaway 100% CPU lockup and severe thermal drain.
 - **Sensors**:
   - Accelerometer, Gyroscope, Magnetometer.
   - Ambient Light Sensor, Proximity Sensor.

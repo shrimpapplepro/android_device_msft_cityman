@@ -24,6 +24,7 @@
 #include <poll.h>
 #include <errno.h>
 #include <dlfcn.h>
+#include <time.h>
 #include <log/log.h>
 
 #undef LOG_TAG
@@ -267,6 +268,12 @@ static int send_dpm_open_port(void) {
     if (!p_dpm_get_service_object) {
         ALOGW("p_dpm_get_service_object not available");
         return -1;
+    }
+
+    if (s_dpm_client && p_qmi_client_release) {
+        ALOGI("[DPM] Releasing previous DPM client before reconnecting...");
+        p_qmi_client_release(s_dpm_client);
+        s_dpm_client = NULL;
     }
 
     qmi_idl_service_object_type dpm_obj = get_service_obj(p_dpm_get_service_object, 1, 2, 6, "DPM");
@@ -834,6 +841,11 @@ static int at_cmd(int fd, const char *cmd, int timeout_ms, char *resp_out, size_
 static void at_radio_cycle(int at_fd) {
     if (at_fd < 0) return;
     char resp[256];
+    at_cmd(at_fd, "AT+CFUN?", 1500, resp, sizeof(resp));
+    if (strstr(resp, "+CFUN: 1")) {
+        ALOGI("Modem already ONLINE (+CFUN: 1), skipping AT+CFUN=1");
+        return;
+    }
     ALOGI("Ensuring modem is in ONLINE mode (AT+CFUN=1)...");
     at_cmd(at_fd, "AT+CFUN=1", 3000, resp, sizeof(resp));
 }
@@ -841,17 +853,44 @@ static void at_radio_cycle(int at_fd) {
 static void at_network_registration(int at_fd) {
     if (at_fd < 0) return;
     char resp[512];
-    ALOGI("Ensuring Automatic Network Selection (AT+COPS=0)...");
-    at_cmd(at_fd, "AT+COPS=0", 5000, resp, sizeof(resp));
 
-    ALOGI("Polling network registration (AT+CREG?)...");
+    at_cmd(at_fd, "AT+CREG?", 1000, resp, sizeof(resp));
+    if (strstr(resp, "+CREG: 0,1") || strstr(resp, "+CREG: 0,5") ||
+        strstr(resp, "+CREG: 1,1") || strstr(resp, "+CREG: 1,5") ||
+        strstr(resp, "+CREG: 2,1") || strstr(resp, "+CREG: 2,5")) {
+        ALOGI("Modem already registered on CS network (+CREG), skipping COPS=0");
+        at_cmd(at_fd, "AT+CGSMS=1", 2000, resp, sizeof(resp));
+        return;
+    }
+
+    at_cmd(at_fd, "AT+CEREG?", 1000, resp, sizeof(resp));
+    if (strstr(resp, "+CEREG: 0,1") || strstr(resp, "+CEREG: 0,5") ||
+        strstr(resp, "+CEREG: 1,1") || strstr(resp, "+CEREG: 1,5") ||
+        strstr(resp, "+CEREG: 2,1") || strstr(resp, "+CEREG: 2,5")) {
+        ALOGI("Modem already registered on LTE/EPS network (+CEREG), skipping COPS=0");
+        at_cmd(at_fd, "AT+CGSMS=1", 2000, resp, sizeof(resp));
+        return;
+    }
+
+    ALOGI("Ensuring Automatic Network Selection (AT+COPS=0)...");
+    at_cmd(at_fd, "AT+COPS=0", 3000, resp, sizeof(resp));
+
+    ALOGI("Polling network registration (AT+CREG? / AT+CEREG?)...");
     int registered = 0;
-    for (int i = 0; i < 15; i++) {
-        at_cmd(at_fd, "AT+CREG?", 2000, resp, sizeof(resp));
+    for (int i = 0; i < 5; i++) {
+        at_cmd(at_fd, "AT+CREG?", 1000, resp, sizeof(resp));
         if (strstr(resp, "+CREG: 0,1") || strstr(resp, "+CREG: 0,5") ||
             strstr(resp, "+CREG: 1,1") || strstr(resp, "+CREG: 1,5") ||
             strstr(resp, "+CREG: 2,1") || strstr(resp, "+CREG: 2,5")) {
-            ALOGI(">>> NETWORK REGISTERED SUCCESSFULLY! <<<");
+            ALOGI(">>> NETWORK REGISTERED SUCCESSFULLY (CS)! <<<");
+            registered = 1;
+            break;
+        }
+        at_cmd(at_fd, "AT+CEREG?", 1000, resp, sizeof(resp));
+        if (strstr(resp, "+CEREG: 0,1") || strstr(resp, "+CEREG: 0,5") ||
+            strstr(resp, "+CEREG: 1,1") || strstr(resp, "+CEREG: 1,5") ||
+            strstr(resp, "+CEREG: 2,1") || strstr(resp, "+CEREG: 2,5")) {
+            ALOGI(">>> NETWORK REGISTERED SUCCESSFULLY (LTE/EPS)! <<<");
             registered = 1;
             break;
         }
@@ -859,25 +898,71 @@ static void at_network_registration(int at_fd) {
     }
 
     if (!registered) {
-        ALOGI("Registration in progress or searching, maintaining automatic mode...");
+        ALOGI("Registration in progress or searching, RIL will continue in background...");
     }
 
-    at_cmd(at_fd, "AT+CGSMS=1", 3000, resp, sizeof(resp));
-    at_cmd(at_fd, "AT+CSQ", 2000, resp, sizeof(resp));
+    at_cmd(at_fd, "AT+CGSMS=1", 2000, resp, sizeof(resp));
+    at_cmd(at_fd, "AT+CSQ", 1500, resp, sizeof(resp));
 }
 
-int main(int argc __attribute__((unused)), char **argv __attribute__((unused))) {
-    ALOGI("==================================================");
-    ALOGI(" Lumia 950 XL (cityman) Modem Initialization Tool ");
-    ALOGI(" Applying MPSS.BO.2.5 Quirks from EpicLPer/ipa-netmgr");
-    ALOGI("==================================================");
+static char modem_sysfs_path[64] = "/sys/bus/msm_subsys/devices/subsys3";
 
-    if (load_qmi_symbols() != 0) {
-        ALOGE("Initialization aborted: could not load QMI libraries.");
-        return 1;
+static void detect_modem_sysfs(void) {
+    char path[64], name[32];
+    for (int i = 0; i < 10; i++) {
+        snprintf(path, sizeof(path), "/sys/bus/msm_subsys/devices/subsys%d/name", i);
+        int fd = open(path, O_RDONLY);
+        if (fd >= 0) {
+            ssize_t n = read(fd, name, sizeof(name) - 1);
+            close(fd);
+            if (n > 0) {
+                name[n] = '\0';
+                if (strstr(name, "modem")) {
+                    snprintf(modem_sysfs_path, sizeof(modem_sysfs_path), "/sys/bus/msm_subsys/devices/subsys%d", i);
+                    ALOGI("Found modem subsystem at %s", modem_sysfs_path);
+                    return;
+                }
+            }
+        }
     }
+}
 
-    int at_fd = open_at_port();
+static int read_crash_count(void) {
+    char path[128], buf[32];
+    snprintf(path, sizeof(path), "%s/crash_count", modem_sysfs_path);
+    int fd = open(path, O_RDONLY);
+    if (fd < 0) return -1;
+    ssize_t n = read(fd, buf, sizeof(buf) - 1);
+    close(fd);
+    if (n <= 0) return -1;
+    buf[n] = '\0';
+    return atoi(buf);
+}
+
+static int is_modem_online(void) {
+    char path[128], buf[32];
+    snprintf(path, sizeof(path), "%s/state", modem_sysfs_path);
+    int fd = open(path, O_RDONLY);
+    if (fd < 0) return 0;
+    ssize_t n = read(fd, buf, sizeof(buf) - 1);
+    close(fd);
+    if (n <= 0) return 0;
+    buf[n] = '\0';
+    return (strstr(buf, "ONLINE") != NULL);
+}
+
+static int wait_for_modem_online(int timeout_sec) {
+    for (int i = 0; i < timeout_sec * 5; i++) {
+        if (is_modem_online()) return 1;
+        usleep(200000); // 200ms
+    }
+    return is_modem_online();
+}
+
+static int run_full_initialization_sequence(int *out_card_provisioned) {
+    ALOGI("--------------------------------------------------");
+    ALOGI(" Executing full Lumia modem provisioning sequence ");
+    ALOGI("--------------------------------------------------");
 
     /* Step 1: DPM Open Port */
     send_dpm_open_port();
@@ -887,10 +972,12 @@ int main(int argc __attribute__((unused)), char **argv __attribute__((unused))) 
 
     /* Step 3: Check SIM card status and provision USIM session if not already ready */
     int already_ready = 0;
-    check_and_provision_uim(&already_ready);
+    int card_ret = check_and_provision_uim(&already_ready);
+    int card_provisioned = (card_ret == 0);
+    if (out_card_provisioned) *out_card_provisioned = card_provisioned;
 
     /* Step 4: Publish SIM Subscription if not already ready */
-    if (!already_ready) {
+    if (!already_ready && card_provisioned) {
         int retries = 10;
         int success = 0;
         while (retries-- > 0) {
@@ -905,10 +992,9 @@ int main(int argc __attribute__((unused)), char **argv __attribute__((unused))) 
             ALOGW("UIM SUBSCRIPTION_OK did not complete cleanly, proceeding...");
         }
         usleep(1500000); // 1.5s settle delay
-    } else {
+    } else if (already_ready) {
         ALOGI("USIM subscription is already published and READY!");
     }
-
 
     /* Step 5: Unhide Dual Standby & Set RAT Preferences (GSM/UMTS/LTE) */
     send_nas_preferences();
@@ -916,12 +1002,34 @@ int main(int argc __attribute__((unused)), char **argv __attribute__((unused))) 
     /* Step 6: Put DMS in ONLINE mode */
     send_dms_online();
 
-    /* Step 7: Radio cycle via AT (CFUN=0 -> CFUN=1) & network registration */
-    if (at_fd >= 0) {
-        at_radio_cycle(at_fd);
-        at_network_registration(at_fd);
-        close(at_fd);
+    ALOGI("--------------------------------------------------");
+    ALOGI(" Lumia modem provisioning sequence finished!      ");
+    ALOGI(" (Pure QMI mode - RIL handles cellular registration)");
+    ALOGI("--------------------------------------------------");
+    return 0;
+}
+
+int main(int argc __attribute__((unused)), char **argv __attribute__((unused))) {
+    ALOGI("==================================================");
+    ALOGI(" Lumia 950 XL (cityman) Modem Initialization Tool ");
+    ALOGI(" Applying MPSS.BO.2.5 Quirks from EpicLPer/ipa-netmgr");
+    ALOGI("==================================================");
+
+    detect_modem_sysfs();
+
+    ALOGI("Waiting for modem subsystem to be ONLINE...");
+    wait_for_modem_online(30);
+
+    if (load_qmi_symbols() != 0) {
+        ALOGE("Initialization aborted: could not load QMI libraries.");
+        return 1;
     }
+
+    int last_crash_count = read_crash_count();
+    ALOGI("Initial modem crash_count: %d", last_crash_count);
+
+    int card_provisioned = 0;
+    run_full_initialization_sequence(&card_provisioned);
 
     ALOGI("==================================================");
     ALOGI(" Lumia Modem Initialization sequence finished!    ");
@@ -930,21 +1038,88 @@ int main(int argc __attribute__((unused)), char **argv __attribute__((unused))) 
     ALOGI("==================================================");
 
     /* Stay resident to hold sessions open & monitor modem health */
-    while (1) {
-        sleep(30);
+    int last_modem_online = 1;
+    int late_sim_counter = 0;
+    int consecutive_crashes = 0;
+    time_t last_crash_time = 0;
 
-        int sim_ready = 0;
-        check_and_provision_uim(&sim_ready);
-        if (!sim_ready) {
-            ALOGW("[WATCHDOG] SIM is no longer READY (modem reset occurred?). Re-provisioning...");
-            int retries = 5;
-            while (retries-- > 0) {
-                if (send_uim_subscription_ok() == 0) break;
-                sleep(1);
+    while (1) {
+        sleep(1); // 1-second watchdog tick for rapid SSR detection
+
+        int cur_crash_count = read_crash_count();
+        int modem_online = is_modem_online();
+
+        /* Check 1: Modem Subsystem Restart (SSR) detected via crash_count or state transition */
+        int crash_detected = (cur_crash_count > last_crash_count && cur_crash_count >= 0);
+        int state_recovered = (!last_modem_online && modem_online);
+
+        if (!modem_online) {
+            if (last_modem_online) {
+                ALOGW("[WATCHDOG] Modem subsystem went OFFLINE. Waiting for recovery...");
             }
-            send_nas_preferences();
-            send_dms_online();
-            ALOGI("[WATCHDOG] Re-provisioning complete!");
+            last_modem_online = 0;
+            card_provisioned = 0;
+            continue;
+        }
+
+        if (crash_detected || state_recovered) {
+            time_t now = time(NULL);
+            if (now - last_crash_time < 60) {
+                consecutive_crashes++;
+            } else {
+                consecutive_crashes = 1;
+            }
+            last_crash_time = now;
+
+            int settle_delay = 3;
+            if (consecutive_crashes == 2) {
+                settle_delay = 8;
+            } else if (consecutive_crashes == 3) {
+                settle_delay = 15;
+            } else if (consecutive_crashes >= 4) {
+                settle_delay = 30;
+            }
+
+            ALOGI("==================================================");
+            ALOGI("[WATCHDOG] Modem restart / SSR detected! (crash_count: %d -> %d, consecutive: %d)",
+                  last_crash_count, cur_crash_count, consecutive_crashes);
+            ALOGI("[WATCHDOG] Backing off %d seconds to allow modem and RIL to stabilize...", settle_delay);
+            ALOGI("==================================================");
+
+            // Wait for modem to stabilize
+            wait_for_modem_online(30);
+            sleep(settle_delay);
+
+            last_crash_count = (cur_crash_count >= 0) ? cur_crash_count : read_crash_count();
+            last_modem_online = 1;
+            card_provisioned = 0;
+
+            ALOGI("[WATCHDOG] Modem recovered from SSR; re-running full QMI provisioning");
+            run_full_initialization_sequence(&card_provisioned);
+            continue;
+        }
+
+        if (consecutive_crashes > 0 && time(NULL) - last_crash_time > 120) {
+            ALOGI("[WATCHDOG] Modem has been stable for > 2 minutes, resetting crash counter");
+            consecutive_crashes = 0;
+        }
+
+        /* Check 2: Late SIM card insertion if SIM was not detected on boot */
+        if (!card_provisioned) {
+            if (++late_sim_counter >= 10) {
+                late_sim_counter = 0;
+                int ready = 0;
+                if (check_and_provision_uim(&ready) == 0) {
+                    ALOGI("[WATCHDOG] Late SIM insertion detected! Provisioning...");
+                    card_provisioned = 1;
+                    if (!ready) {
+                        send_uim_subscription_ok();
+                    }
+                    send_nas_preferences();
+                    send_dms_online();
+                    ALOGI("[WATCHDOG] Late SIM provisioning complete!");
+                }
+            }
         }
     }
 

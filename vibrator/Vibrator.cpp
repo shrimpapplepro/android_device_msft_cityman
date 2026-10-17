@@ -41,12 +41,12 @@ namespace implementation {
  * vtg_level is vmax_mv (haptics.dtsi 2300, qpnp clamp 116-3596).
  */
 static const char kEnablePath[] = "/sys/class/timed_output/vibrator/enable";
+static const char kVmaxMvStrongPath[] = "/sys/class/timed_output/vibrator/vmax_mv_strong";
 static const char kVtgLevelPath[] = "/sys/class/timed_output/vibrator/vtg_level";
 static const char kVtgMinPath[] = "/sys/class/timed_output/vibrator/vtg_min";
 static const char kVtgMaxPath[] = "/sys/class/timed_output/vibrator/vtg_max";
-static const char kVtgDefaultPath[] = "/sys/class/timed_output/vibrator/vtg_default";
 
-static constexpr uint32_t CLICK_TIMING_MS = 20;
+static constexpr uint32_t CLICK_TIMING_MS = 40;
 
 static bool nodeWritable(const char *path) {
     int fd = TEMP_FAILURE_RETRY(open(path, O_RDWR));
@@ -96,9 +96,9 @@ static bool readIntNode(const char *path, int *out) {
 static uint8_t amplitudeForStrength(EffectStrength strength) {
     switch (strength) {
         case EffectStrength::LIGHT:
-            return 64;
+            return 160;
         case EffectStrength::MEDIUM:
-            return 128;
+            return 210;
         case EffectStrength::STRONG:
         default:
             return 255;
@@ -112,20 +112,37 @@ Vibrator::Vibrator() {
         return;
     }
 
-    int vmin = 0, vmax = 0, vdef = 0;
-    bool haveMin = readIntNode(kVtgMinPath, &vmin);
-    bool haveMax = readIntNode(kVtgMaxPath, &vmax);
-    bool haveDef = readIntNode(kVtgDefaultPath, &vdef);
-    if (haveMin && haveMax && vmin > 0 && vmax >= vmin && nodeWritable(kVtgLevelPath)) {
-        mVtgMin = vmin;
-        /* DT vmax (vtg_default, 2300 mV) is the designed peak, not vtg_max 3596. */
-        mVtgMax = haveDef && vdef >= vmin && vdef <= vmax ? vdef : vmax;
+    /* Check for qpnp-haptic vmax_mv_strong first (Lumia 950 XL hardware) */
+    if (nodeWritable(kVmaxMvStrongPath)) {
+        mVtgPath = kVmaxMvStrongPath;
+        mVtgMin = 1800; // Minimum spin voltage for ERM motor
+        mVtgMax = 3200; // Designed peak voltage (PMI8994 max 3596 mV)
         mHasAmplitude = true;
+        ALOGI("Vibrator using qpnp-haptic: %s [min=%d, max=%d]", mVtgPath, mVtgMin, mVtgMax);
+    } else {
+        /* Fallback to qpnp-vibrator nodes */
+        int vmin = 0, vmax = 0;
+        bool haveMin = readIntNode(kVtgMinPath, &vmin);
+        bool haveMax = readIntNode(kVtgMaxPath, &vmax);
+        if (haveMin && haveMax && vmin > 0 && vmax >= vmin && nodeWritable(kVtgLevelPath)) {
+            mVtgPath = kVtgLevelPath;
+            mVtgMin = std::max(vmin, 1800);
+            mVtgMax = (vmax > 3200) ? 3200 : vmax;
+            mHasAmplitude = true;
+            ALOGI("Vibrator using qpnp-vibrator: %s [min=%d, max=%d]", mVtgPath, mVtgMin, mVtgMax);
+        }
+    }
+
+    if (mHasAmplitude) {
+        applyAmplitude(255);
     }
 }
 
 Return<Status> Vibrator::on(uint32_t timeoutMs) {
     std::lock_guard<std::mutex> lock(mLock);
+    if (mHasAmplitude && timeoutMs > 0) {
+        applyAmplitude(255);
+    }
     return activate(timeoutMs);
 }
 
@@ -190,9 +207,11 @@ Status Vibrator::applyAmplitude(uint8_t amplitude) {
 
     char value[20];
     snprintf(value, sizeof(value), "%ld\n", mv);
-    int ret = writeNode(kVtgLevelPath, value);
+    if (!mVtgPath)
+        return Status::UNSUPPORTED_OPERATION;
+    int ret = writeNode(mVtgPath, value);
     if (ret != 0) {
-        ALOGE("write %s failed (%s)", kVtgLevelPath, strerror(-ret));
+        ALOGE("write %s failed (%s)", mVtgPath, strerror(-ret));
         return Status::UNKNOWN_ERROR;
     }
     return Status::OK;

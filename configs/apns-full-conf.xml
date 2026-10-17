@@ -27781,6 +27781,24 @@
       type="default,supl"
   />
 
+  <apn carrier="IAM Internet"
+      mcc="604"
+      mnc="01"
+      apn="internet1.ma"
+      type="default,supl,dun"
+      protocol="IPV4V6"
+      roaming_protocol="IP"
+  />
+
+  <apn carrier="IAM 4G"
+      mcc="604"
+      mnc="01"
+      apn="www.iamgprs2.ma"
+      type="default,supl,dun"
+      protocol="IPV4V6"
+      roaming_protocol="IP"
+  />
+
   <apn carrier="Internet Mobile"
       mcc="604"
       mnc="01"

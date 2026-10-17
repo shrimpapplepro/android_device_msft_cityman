@@ -51,7 +51,7 @@ BOARD_KERNEL_BASE        := 0x00000000
 BOARD_KERNEL_PAGESIZE    := 4096
 BOARD_KERNEL_TAGS_OFFSET := 0x01E00000
 BOARD_RAMDISK_OFFSET     := 0x02000000
-BOARD_KERNEL_CMDLINE := androidboot.hardware=cityman boot_cpus=0-5
+BOARD_KERNEL_CMDLINE := androidboot.hardware=cityman boot_cpus=0-7
 BOARD_KERNEL_CMDLINE += lpm_levels.sleep_disabled=1 msm_poweroff.download_mode=0
 BOARD_KERNEL_CMDLINE += loop.max_part=7 androidboot.boot_devices=soc.0/f9824900.sdhci
 BOARD_KERNEL_CMDLINE += androidboot.selinux=permissive androidboot.usbconfigfs=0
@@ -69,13 +69,13 @@ TARGET_KERNEL_CLANG_COMPILE := false
 # APEX
 TARGET_FLATTEN_APEX := true
 
-#Jemalloc
-MALLOC_SVELTE := true
+#Jemalloc — don't use svelte on 3GB device
+# MALLOC_SVELTE := true
 
 # Audio
 BOARD_USES_ALSA_AUDIO := true
 AUDIO_FEATURE_ENABLED_MULTI_VOICE_SESSIONS := true
-AUDIO_FEATURE_ENABLED_SPKR_PROTECTION := true
+AUDIO_FEATURE_ENABLED_SPKR_PROTECTION := false
 USE_XML_AUDIO_POLICY_CONF := 1
 
 # Binder
@@ -189,8 +189,6 @@ TARGET_LD_SHIM_LIBS := \
     /system/vendor/lib64/libril-qc-qmi-1.so|libaudioclient_shim.so
 #    /vendor/bin/slim_daemon|/vendor/lib64/slim_shim.so
 
-
-# Testing related defines
 
 # Telephony
 TARGET_USES_ALTERNATIVE_MANUAL_NETWORK_SELECT := true

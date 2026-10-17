@@ -22,6 +22,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <malloc.h>
+#include <math.h>
 #include <pthread.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -81,6 +82,9 @@ static struct led_config g_blink_led;
 static int write_int(char const *path, int value) {
   int fd = open(path, O_RDWR);
   if (fd < 0) {
+    if (errno == ENOENT) {
+      return 0; /* Hardware LED node not present; silent success */
+    }
     ALOGE("write_int failed to open %s (%s)", path, strerror(errno));
     return -errno;
   }
@@ -99,8 +103,12 @@ static int write_int(char const *path, int value) {
 
 static int write_str(char const *path, char const *str) {
   int fd = open(path, O_RDWR);
-  if (fd < 0)
+  if (fd < 0) {
+    if (errno == ENOENT) {
+      return 0;
+    }
     return -errno;
+  }
 
   size_t len = strlen(str);
   int amt = write(fd, str, len);
@@ -208,6 +216,8 @@ void init_globals(void) {
 static int set_light_backlight(struct light_device_t *dev __unused,
                                struct light_state_t const *state) {
   int brightness = rgb_to_brightness(state);
+  if (brightness > 0 && brightness < 2)
+    brightness = 2;
   int err;
 
   pthread_mutex_lock(&g_lock);
@@ -358,6 +368,11 @@ static int set_light_attention(struct light_device_t *dev __unused,
   return err;
 }
 
+static int set_light_buttons(struct light_device_t *dev __unused,
+                             struct light_state_t const *state __unused) {
+  return 0;
+}
+
 static int close_lights(struct light_device_t *dev) {
   if (dev)
     free(dev);
@@ -373,6 +388,8 @@ static int open_lights(const struct hw_module_t *module, char const *name,
     set_light = set_light_backlight;
   else if (!strcmp(LIGHT_ID_FLASHLIGHT, name))
     set_light = set_light_flashlight;
+  else if (!strcmp(LIGHT_ID_BUTTONS, name))
+    set_light = set_light_buttons;
   else if (!strcmp(LIGHT_ID_NOTIFICATIONS, name))
     set_light = set_light_notifications;
   else if (!strcmp(LIGHT_ID_ATTENTION, name))

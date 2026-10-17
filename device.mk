@@ -68,7 +68,6 @@ PRODUCT_COPY_FILES += \
     frameworks/native/data/etc/android.hardware.usb.host.xml:$(TARGET_COPY_OUT_SYSTEM)/etc/permissions/android.hardware.usb.host.xml \
     frameworks/native/data/etc/android.hardware.audio.low_latency.xml:$(TARGET_COPY_OUT_SYSTEM)/etc/permissions/android.hardware.audio.low_latency.xml \
     frameworks/native/data/etc/android.hardware.audio.pro.xml:$(TARGET_COPY_OUT_SYSTEM)/etc/permissions/android.hardware.audio.pro.xml \
-    frameworks/native/data/etc/android.hardware.telephony.cdma.xml:$(TARGET_COPY_OUT_SYSTEM)/etc/permissions/android.hardware.telephony.cdma.xml \
     frameworks/native/data/etc/android.hardware.telephony.ims.xml:$(TARGET_COPY_OUT_SYSTEM)/etc/permissions/android.hardware.telephony.ims.xml \
     frameworks/native/data/etc/android.hardware.telephony.gsm.xml:$(TARGET_COPY_OUT_SYSTEM)/etc/permissions/android.hardware.telephony.gsm.xml \
     frameworks/native/data/etc/android.hardware.ethernet.xml:$(TARGET_COPY_OUT_SYSTEM)/etc/permissions/android.hardware.ethernet.xml \
@@ -399,10 +398,9 @@ PRODUCT_PACKAGES += \
 PRODUCT_PACKAGES += \
     libqti-perfd-client
 
-# Low memory optimization
-PRODUCT_PROPERTY_OVERRIDES += \
-    ro.config.low_ram=true
-    
+# The Lumia 950 XL has 3GB RAM — low_ram mode is for 512MB-1GB devices.
+# PRODUCT_PROPERTY_OVERRIDES += \
+#     ro.config.low_ram=true
 PRODUCT_PACKAGES += \
     sensors.cityman \
     android.hardware.sensors@1.0-impl \

@@ -40,7 +40,7 @@ int writeNode(const char *path, const char *value) {
     if (fd < 0) {
         int err = -errno;
         if (err == -ENOENT)
-            ALOGW("open(%s) write: %s", path, strerror(-err));
+            ALOGV("open(%s) write: %s", path, strerror(-err));
         else
             ALOGE("open(%s) write: %s", path, strerror(-err));
         return err;

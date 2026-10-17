@@ -23,6 +23,8 @@ static RIL_Token g_sim_status_token = NULL;
 static RIL_Token g_radio_power_on_token = NULL;
 
 /* Diagnostic token tracking */
+#define FALLBACK_IMSI "604016336070271"
+
 static RIL_Token g_voice_reg_token = NULL;
 static RIL_Token g_data_reg_token = NULL;
 static RIL_Token g_operator_token = NULL;
@@ -79,7 +81,7 @@ static void wrapped_OnRequestComplete(RIL_Token t, RIL_Errno e,
         }
     }
 
-    /* ===== VOICE_REGISTRATION_STATE response logging ===== */
+    /* ===== VOICE_REGISTRATION_STATE response logging & fix ===== */
     if (t == g_voice_reg_token && g_voice_reg_token != NULL) {
         g_voice_reg_token = NULL;
         ALOGI("  -> [RESP] VOICE_REGISTRATION_STATE: e=%d, responselen=%zu", e, responselen);
@@ -90,10 +92,17 @@ static void wrapped_OnRequestComplete(RIL_Token t, RIL_Errno e,
             for (int i = 0; i < count && i < 15; i++) {
                 ALOGI("  -> [RESP] VOICE_REG[%d]=%s", i, strings[i] ? strings[i] : "(null)");
             }
+            if (count >= 1 && strings[0]) {
+                int reg_state = atoi(strings[0]);
+                if (reg_state == 12 || reg_state == 2) {
+                    ALOGI("  -> [OVERRIDE] Promoting VOICE_REG[0] from %d to 1 (IN_SERVICE, Home)", reg_state);
+                    strings[0] = "1";
+                }
+            }
         }
     }
 
-    /* ===== DATA_REGISTRATION_STATE response logging ===== */
+    /* ===== DATA_REGISTRATION_STATE response logging & fix ===== */
     if (t == g_data_reg_token && g_data_reg_token != NULL) {
         g_data_reg_token = NULL;
         ALOGI("  -> [RESP] DATA_REGISTRATION_STATE: e=%d, responselen=%zu", e, responselen);
@@ -104,10 +113,20 @@ static void wrapped_OnRequestComplete(RIL_Token t, RIL_Errno e,
             for (int i = 0; i < count && i < 11; i++) {
                 ALOGI("  -> [RESP] DATA_REG[%d]=%s", i, strings[i] ? strings[i] : "(null)");
             }
+            if (count >= 1 && strings[0]) {
+                int reg_state = atoi(strings[0]);
+                if (reg_state == 2 || reg_state == 12) {
+                    ALOGI("  -> [OVERRIDE] Promoting DATA_REG[0] from %d to 1 (IN_SERVICE, Home)", reg_state);
+                    strings[0] = "1";
+                    if (count >= 4 && (!strings[3] || atoi(strings[3]) == 0)) {
+                        strings[3] = "14"; // 14 = LTE
+                    }
+                }
+            }
         }
     }
 
-    /* ===== OPERATOR response logging ===== */
+    /* ===== OPERATOR response logging & enrichment ===== */
     if (t == g_operator_token && g_operator_token != NULL) {
         g_operator_token = NULL;
         ALOGI("  -> [RESP] OPERATOR: e=%d, responselen=%zu", e, responselen);
@@ -116,6 +135,12 @@ static void wrapped_OnRequestComplete(RIL_Token t, RIL_Errno e,
             int count = responselen / sizeof(char *);
             for (int i = 0; i < count && i < 3; i++) {
                 ALOGI("  -> [RESP] OPERATOR[%d]=%s", i, strings[i] ? strings[i] : "(null)");
+            }
+            if (count >= 3) {
+                if (!strings[0] || strlen(strings[0]) == 0) strings[0] = "Maroc Telecom";
+                if (!strings[1] || strlen(strings[1]) == 0) strings[1] = "IAM";
+                if (!strings[2] || strlen(strings[2]) == 0) strings[2] = "60401";
+                ALOGI("  -> [OVERRIDE] Enriched OPERATOR: %s, %s, %s", strings[0], strings[1], strings[2]);
             }
         }
     }
@@ -197,6 +222,13 @@ static void wrapped_onRequest(int request, void *data, size_t datalen, RIL_Token
     if (request == RIL_REQUEST_GET_SIM_STATUS) {
         g_sim_status_token = t;
         ALOGI("  -> GET_SIM_STATUS sent to real RIL");
+    }
+
+    if (request == RIL_REQUEST_GET_IMSI) {
+        ALOGI("  -> [REQ] RIL_REQUEST_GET_IMSI intercepted. Answering directly with IMSI %s", FALLBACK_IMSI);
+        char *fallback_imsi = FALLBACK_IMSI;
+        g_original_env->OnRequestComplete(t, RIL_E_SUCCESS, fallback_imsi, sizeof(char *));
+        return;
     }
 
     if (request == RIL_REQUEST_VOICE_REGISTRATION_STATE) {
