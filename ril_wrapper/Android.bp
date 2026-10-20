@@ -29,6 +29,7 @@ cc_binary {
         "-Wall",
         "-Werror",
         "-Wno-unused-parameter",
+        "-Wno-unused-function",
     ],
     compile_multilib: "64",
     vendor: true,
