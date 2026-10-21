@@ -1719,11 +1719,6 @@ int32_t QCameraStream::putBufs(mm_camera_map_unmap_ops_tbl_t *ops_tbl)
     int rc = NO_ERROR;
 
     if (mBufAllocPid != 0) {
-        // BufAllocRoutine blocks in cond_wait() until the stream is started.
-        // If start failed, mm-camera-interface calls put_buf before anyone
-        // signalled it; joining here without the signal deadlocks
-        // CAM_stMachine (and with it the whole cameraserver).
-        cond_signal(true);
         CDBG_HIGH("%s: wait for buf allocation thread dead", __func__);
         pthread_join(mBufAllocPid, NULL);
         mBufAllocPid = 0;
