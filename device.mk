@@ -463,7 +463,8 @@ endif
 
 # IMX230 adapter for the OnePlus 2 sensor framework
 PRODUCT_PACKAGES += \
-    libmmcamera_mot_imx230
+    libmmcamera_mot_imx230 \
+    libshim_atomic
 
 PRODUCT_COPY_FILES += \
     vendor/msft/cityman/proprietary/vendor/lib/libmmcamera_mot_imx230.so:$(TARGET_COPY_OUT_VENDOR)/lib/libmmcamera_imx230.so
