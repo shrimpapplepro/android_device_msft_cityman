@@ -31,7 +31,7 @@ LOCAL_SRC_FILES += \
     HAL/QCameraParameters.cpp \
     HAL/QCameraThermalAdapter.cpp
 
-LOCAL_CFLAGS := -Wall -Wextra -Werror
+LOCAL_CFLAGS := -Wall -Wextra -Werror -Wno-unused-parameter
 LOCAL_CFLAGS += -DHAS_MULTIMEDIA_HINTS
 
 ifeq ($(TARGET_USES_AOSP),true)
@@ -52,7 +52,7 @@ LOCAL_C_INCLUDES := \
     $(LOCAL_PATH)/stack/common \
     frameworks/native/include/media/hardware \
     frameworks/native/include/media/openmax \
-    $(call project-path-for,qcom-media)/libstagefrighthw \
+    hardware/qcom/media/msm8974/libstagefrighthw \
     system/media/camera/include \
     $(LOCAL_PATH)/../mm-image-codec/qexif \
     $(LOCAL_PATH)/../mm-image-codec/qomx_core \
@@ -64,7 +64,7 @@ LOCAL_C_INCLUDES += \
     frameworks/native/include/media/hardware \
     $(LOCAL_PATH)/HAL
 
-LOCAL_HEADER_LIBRARIES := generated_kernel_headers
+LOCAL_HEADER_LIBRARIES := display_headers generated_kernel_headers
 
 
 LOCAL_SHARED_LIBRARIES := libcamera_client liblog libhardware libutils libcutils libdl

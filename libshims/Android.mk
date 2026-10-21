@@ -33,3 +33,12 @@ LOCAL_PROPRIETARY_MODULE := true
 LOCAL_VENDOR_MODULE := true
 LOCAL_CFLAGS_arm64 := -DLIBSHIMS_64BIT
 include $(BUILD_SHARED_LIBRARY)
+# Old camera blobs (OnePlus 2 libmmcamera2_stats_algorithm.so) need out-of-line android_atomic_*
+include $(CLEAR_VARS)
+LOCAL_SRC_FILES := atomic.c
+LOCAL_MODULE := libshim_atomic
+LOCAL_MODULE_CLASS := SHARED_LIBRARIES
+LOCAL_SHARED_LIBRARIES := libcutils
+LOCAL_MULTILIB := 32
+LOCAL_VENDOR_MODULE := true
+include $(BUILD_SHARED_LIBRARY)
