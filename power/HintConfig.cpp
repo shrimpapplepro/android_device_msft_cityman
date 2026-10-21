@@ -19,6 +19,8 @@
 
 #include "HintConfig.h"
 
+#include <cutils/properties.h>
+
 #include <errno.h>
 #include <fcntl.h>
 #include <log/log.h>
@@ -89,8 +91,23 @@ int snapDown(const std::vector<int> &table, int khz) {
   return best;
 }
 
+/*
+ * Runtime A57 cap (kHz), default 1248000. The worn cityman battery browns out
+ * (PMIC UVLO) on A57 peaks at 1.96 GHz; every big max/min/hispeed this HAL
+ * writes is clamped to it. persist.vendor.power.a57_cap_khz overrides.
+ */
+static int a57CapKhz() {
+  static int cap = -1;
+  if (cap < 0) {
+    cap = property_get_int32("persist.vendor.power.a57_cap_khz", 1248000);
+    if (cap <= 0 || cap > kA57CeilingKhz)
+      cap = kA57CeilingKhz;
+  }
+  return cap;
+}
+
 int clampBigKhz(int khz, int cpuinfo_max_khz) {
-  int cap = kA57CeilingKhz;
+  int cap = a57CapKhz();
   if (cpuinfo_max_khz > 0 && cpuinfo_max_khz < cap)
     cap = cpuinfo_max_khz;
   if (khz > cap)
