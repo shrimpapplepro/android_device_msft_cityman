@@ -28,6 +28,7 @@ cc_binary {
     ],
     shared_libs: [
         "libhidlbase",
+        "libcutils",
         "liblog",
         "libutils",
         "android.hardware.power@1.0",
