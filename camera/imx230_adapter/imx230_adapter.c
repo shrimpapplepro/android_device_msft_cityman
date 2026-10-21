@@ -118,72 +118,6 @@ static void *open_sym(const char *libname, const char *sym) {
 #define P(base, off) (*(const char **)((base) + (off)))
 #define U32(base, off) (*(uint32_t *)((base) + (off)))
 
-/*
- * Mode 7: 2496x1872, 2x2 binned full-FoV viewfinder (Windows Phone driver's
- * DCC 0xFF0B / SensorMode 11, PLLs already for the 9.6MHz MCLK: VT 1/124,
- * OP 1/79, 0x0820 3033 Mbps). About a third of the full-size pixel rate, so
- * preview runs much cooler. Frame length 3293 lines -> 30 fps at 595.2 MHz.
- */
-#define RES_BASE   0x0b84
-#define RES_SZ     0x14
-#define RES_COUNT  0x0c4c
-#define OUT_COUNT  0x0e50
-#define CSI_BASE   0x0e54
-#define CSI_SZ     0x8c
-#define CSI_COUNT  0x13cc
-#define CROP_COUNT 0x1420
-/* Takes Moto's 120 fps HFR slot (1336x752, mode 2): with it the HAL offered
- * preview fps up to 120, so the daemon could never pick a 30 fps mode and ran
- * the full 5344x4016 readout for preview. Slow-motion video goes away for now. */
-#define BIN_MODE   4
-
-static struct reg_array bin_regs[96];
-static uint16_t n_bin;
-static void bb(uint16_t a, uint8_t v) { bin_regs[n_bin++] = (struct reg_array){a, v, 0}; }
-static void bw(uint16_t a, uint16_t v) { bb(a, v >> 8); bb(a + 1, v & 0xff); }
-
-static void build_bin_regs(void) {
-  static const uint16_t w[][2] = {
-      {0x0112, 0x0a0a}, {0x0820, 0x0bd9}, {0x0300, 0x0004}, {0x0302, 0x0002},
-      {0x0304, 0x0001}, {0x0306, 0x007c}, {0x0308, 0x0008}, {0x030a, 0x0001},
-      {0x030c, 0x0001}, {0x030e, 0x004f}, {0x0342, 0x1788}, {0x0340, 3293},
-      {0x0344, 0x00b0}, {0x0346, 0x0088}, {0x0348, 0x142f}, {0x034a, 0x0f27},
-      {0x034c, 0x09c0}, {0x034e, 0x0750}, {0x0402, 0x0000}, {0x0408, 0x0000},
-      {0x040a, 0x0000}, {0x040c, 0x09c0}, {0x040e, 0x0750}, {0x3a22, 0x2013},
-      {0x3a24, 0x8007}, {0x3a30, 0xb000}, {0x3a32, 0x8814}, {0x3a34, 0x2f0f},
-  };
-  static const uint8_t b[][3] = {   /* addr hi, addr lo, value */
-      {0x01, 0x11, 0x02}, {0x01, 0x14, 0x03}, {0x03, 0x10, 0x01}, {0x04, 0x01, 0x00},
-      {0x04, 0x03, 0x00}, {0x09, 0x00, 0x01}, {0x09, 0x01, 0x22}, {0x09, 0x02, 0x00},
-      {0x02, 0x20, 0x00}, {0x3a, 0x21, 0x00}, {0x30, 0x06, 0x01}, {0x31, 0xe0, 0x03},
-      {0x3a, 0x26, 0x50}, {0x3a, 0x2f, 0x00}, {0x3a, 0x36, 0x27}, {0x69, 0x14, 0x01},
-      {0x3a, 0x38, 0x01}, {0x3a, 0x39, 0x00}, {0x31, 0x23, 0x01}, {0x30, 0x13, 0x00},
-  };
-  n_bin = 0;
-  for (unsigned i = 0; i < sizeof(w) / sizeof(w[0]); i++) bw(w[i][0], w[i][1]);
-  for (unsigned i = 0; i < sizeof(b) / sizeof(b[0]); i++) bb((uint16_t)(b[i][0] << 8 | b[i][1]), b[i][2]);
-}
-
-static void add_bin_mode(uint8_t *l) {
-  build_bin_regs();
-  uint8_t *r = l + RES_BASE + BIN_MODE * RES_SZ;          /* reg setting entry */
-  *(void **)r = bin_regs;
-  U32(r, 4) = n_bin; U32(r, 8) = 2; U32(r, 12) = 1; U32(r, 16) = 0;
-  uint8_t *o = l + OP2_OUT + BIN_MODE * OP2_OUT_SZ;       /* out_info */
-  memset(o, 0, OP2_OUT_SZ);
-  U32(o, 0x00) = 2496 | (1872u << 16);
-  U32(o, 0x04) = 6024 | (3293u << 16);
-  U32(o, 0x08) = 595200000;
-  U32(o, 0x0c) = 303360000;
-  U32(o, 0x10) = 2;                                       /* binning factor */
-  *(float *)(o + 0x14) = 7.5f;
-  *(float *)(o + 0x18) = 30.0f;
-  U32(o, 0x1c) = 1;                                       /* default (preview/snapshot) */
-  *(float *)(o + 0x28) = 1.0f;
-  memcpy(l + CSI_BASE + BIN_MODE * CSI_SZ, l + CSI_BASE, CSI_SZ);   /* CSI/LUT like mode 0 */
-  memcpy(l + OP2_CHROMA + BIN_MODE * OP2_CHROMA_SZ, l + OP2_CHROMA, OP2_CHROMA_SZ);
-}
-
 void *sensor_open_lib(void) {
   const uint8_t *tmpl = open_sym("libmmcamera_ov13860.so", "sensor_open_lib");
   const uint8_t *mot = open_sym("libmmcamera_mot_imx230_moto.so", "sensor_open_lib");
@@ -216,8 +150,6 @@ void *sensor_open_lib(void) {
   *(void **)(lib + 0x1684) = NULL;             /* PDAF stats parser (ov13860's) */
   U32(lib, 0x1644) = U32(mot, 0x1638);         /* 5344: Moto field 0xc lower */
   U32(lib, 0x1648) = U32(mot, 0x163c);
-  if (U32(mot, OP2_OUT + BIN_MODE * MOT_OUT_SZ + 0x1c) == 2) /* Moto mode 4 is HFR */
-    add_bin_mode(lib);
 
   ALOGI("built OP2 sensor_lib for %s: %u modes, %u chromatix sets, %ux%u",
         (const char *)lib, U32(lib, 0x0c4c), U32(lib, CHROMA_COUNT),
