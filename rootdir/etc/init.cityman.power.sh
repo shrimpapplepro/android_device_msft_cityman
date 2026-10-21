@@ -81,8 +81,10 @@ write /sys/devices/system/cpu/cpu4/cpufreq/scaling_governor schedutil
 restorecon -R /sys/devices/system/cpu
 write /sys/devices/system/cpu/cpu4/cpufreq/scaling_min_freq 384000
 
-# restore A57's max
-copy /sys/devices/system/cpu/cpu4/cpufreq/cpuinfo_max_freq /sys/devices/system/cpu/cpu4/cpufreq/scaling_max_freq
+# A57 max: 1.248 GHz, not 1.958. The worn 3340 mAh cell (~300 mOhm ESR) browns
+# out (PMIC UVLO -> SMPL reboot) on A57 + camera current peaks, and the 810 runs
+# hot; 1248 MHz roughly halves the A57 peak power.
+write /sys/devices/system/cpu/cpu4/cpufreq/scaling_max_freq 1248000
 
 # plugin remaining A57s
 write /sys/devices/system/cpu/cpu5/online 1
@@ -90,7 +92,7 @@ write /sys/devices/system/cpu/cpu6/online 1
 write /sys/devices/system/cpu/cpu7/online 1
 
 # Restore CPU 4-7 max freq from msm_performance
-write /sys/module/msm_performance/parameters/cpu_max_freq "4:4294967295 5:4294967295 6:4294967295 7:4294967295"
+write /sys/module/msm_performance/parameters/cpu_max_freq "4:1248000 5:1248000 6:1248000 7:1248000"
 
 # input boost configuration (kernel cpu-boost, fires on every touch event).
 # Boost policy CPU only; scheduler handles the rest. 300ms matches INTERACTION hint.
@@ -118,9 +120,11 @@ write /proc/sys/kernel/sched_boost 0
 
 # re-enable thermal core control
 write /sys/module/msm_thermal/core_control/enabled 1
-# Disable Qualcomm BCL to prevent false-positive battery voltage dips from clamping big cores to 768 MHz
-get-set-forall /sys/devices/soc.0/qcom,bcl.*/freq_max 1958400
-get-set-forall /sys/devices/soc.0/qcom,bcl.*/mode disable
+# Qualcomm BCL on: the VPH dips were real, not false positives - with BCL off the
+# phone reset on them (PMIC: power-off UVLO, power-on SMPL). Clamp to 768 MHz
+# while VPH < 3.3 V (released at 3.5 V) instead of losing power.
+get-set-forall /sys/devices/soc.0/qcom,bcl.*/freq_max 768000
+get-set-forall /sys/devices/soc.0/qcom,bcl.*/mode enable
 
 # GPU wake level 4 (300MHz), same as qcom,initial-pwrlevel.
 # Adreno 430 on the 1440x2560 Cityman panel benefits from waking at 300MHz.
