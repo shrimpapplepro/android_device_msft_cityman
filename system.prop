@@ -33,6 +33,8 @@ persist.camera.continuous.focus=0
 persist.vendor.camera.focus.debug=0
 persist.camera.dropped.flag=0
 persist.camera.zsl.mode=1
+# OP2 mm-camera stats: gyro via Android sensors, not DSPS sensor1 (absent: 3 s timeout per open)
+persist.camera.gyro.android=1
 ro.qc.sdk.camera.facialproc=false
 ro.camera.req.force32=true
 ro.camera.notify_nfc=1
