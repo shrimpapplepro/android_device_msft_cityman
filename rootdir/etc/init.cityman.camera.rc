@@ -16,9 +16,10 @@ on boot
 # No 'restart cameraserver' on boot_completed (see init.cityman.rc): the
 # boot-time cameraserver already has camera 0; the restart only created a
 # window with no ICameraService that crashed Snap on an empty camera list.
-on property:sys.boot_completed=1
-    restart qcamerasvr
-    restart cameraserver
+# No restart on boot_completed either: restarting qcamerasvr and cameraserver
+# together let cameraserver re-enumerate while the daemon was still starting,
+# leaving it with 0 cameras. The sensor-registration race it papered over is
+# fixed in the kernel (msm_sensor_init flushes the delayed IMX230 ident).
 
 service qcamerasvr /vendor/bin/mm-qcamera-daemon
     class main
