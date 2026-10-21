@@ -461,15 +461,6 @@ private:
     void captureDone();
     int32_t updateMetadata(metadata_buffer_t *pMetaData);
 
-    // cityman: photo flash on the GPIO LED led:flash_torch (mm-camera has no
-    // flash driver). The LED goes on before the capture frame, the AEC is
-    // given time to converge on the lit scene, and the LED goes off when the
-    // capture frame has been received. Torch mode is untouched by these.
-    int32_t ledStrobeStart();
-    void ledStrobeStop();
-    void ledStrobeFrameReceived();
-    void ledStrobeAecUpdate(uint32_t frame_idx, const cam_3a_params_t &ae);
-
     int32_t getPPConfig(cam_pp_feature_config_t &pp_config, int curCount);
     static void camEvtHandle(uint32_t camera_handle,
                           mm_camera_event_t *evt,
@@ -588,28 +579,6 @@ private:
     pthread_t mLiveSnapshotThread;
     pthread_t mIntPicThread;
     bool mFlashNeeded;
-
-    // led:flash_torch software strobe state. m_ledStrobeLock guards it: the
-    // metadata callback thread feeds AEC samples while take_picture() waits
-    // on m_ledStrobeCond for the exposure to settle.
-    typedef struct {
-        bool on;                // LED currently lit by the strobe (not torch)
-        uint8_t pending;        // capture frames still expected before LED off
-        bool valid;             // at least one AEC report seen
-        uint32_t frame_idx;     // frame id of the last AEC report
-        float exp_time;         // exposure time (s) of the last AEC report
-        int32_t iso;            // ISO of the last AEC report
-        uint32_t settled;       // AEC settled flag of the last report
-        uint32_t on_frame_idx;  // frame id when the LED was switched on
-        float on_exp_time;      // exposure the AEC had when the LED went on
-        int32_t on_iso;
-        bool reacted;           // AEC changed exposure since the LED went on
-        bool stable;            // exposure unchanged from the previous report
-    } led_strobe_t;
-    led_strobe_t mLedStrobe;
-    pthread_mutex_t m_ledStrobeLock;
-    pthread_cond_t m_ledStrobeCond;
-
     uint32_t mDeviceRotation;
     uint32_t mCaptureRotation;
     uint32_t mJpegExifRotation;

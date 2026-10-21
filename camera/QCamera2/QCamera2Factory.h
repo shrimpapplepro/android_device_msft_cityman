@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2014, The Linux Foundataion. All rights reserved.
+/* Copyright (c) 2012-2015, The Linux Foundataion. All rights reserved.
 *
 * Redistribution and use in source and binary forms, with or without
 * modification, are permitted provided that the following conditions are
@@ -30,7 +30,6 @@
 #ifndef __QCAMERA2FACTORY_H__
 #define __QCAMERA2FACTORY_H__
 
-#include <pthread.h>
 #include <hardware/camera.h>
 #include <system/camera.h>
 #include <hardware/camera3.h>
@@ -53,24 +52,18 @@ public:
     static int set_callbacks(const camera_module_callbacks_t *callbacks);
     static int open_legacy(const struct hw_module_t* module,
             const char* id, uint32_t halVersion, struct hw_device_t** device);
-    static int set_torch_mode(const char* camera_id, bool enabled);
-    /* called by the device close() path so the torch becomes available again */
-    static void camera_device_closed(int camera_id);
+    static int set_torch_mode(const char* camera_id, bool on);
 
 private:
     int getNumberOfCameras();
     int getCameraInfo(int camera_id, struct camera_info *info);
     int setCallbacks(const camera_module_callbacks_t *callbacks);
     int cameraDeviceOpen(int camera_id, struct hw_device_t **hw_device);
-    int setTorchMode(int camera_id, bool enabled);
-    void onCameraOpened(int camera_id);
-    void onCameraClosed(int camera_id);
-    void notifyTorchStatus(int camera_id, torch_mode_status_t status);
     static int camera_device_open(const struct hw_module_t *module, const char *id,
                 struct hw_device_t **hw_device);
     static int openLegacy(
             int32_t cameraId, uint32_t halVersion, struct hw_device_t** hw_device);
-
+    int setTorchMode(const char* camera_id, bool on);
 public:
     static struct hw_module_methods_t mModuleMethods;
 
@@ -78,10 +71,6 @@ private:
     int mNumOfCameras;
     hal_desc *mHalDescriptors;
     const camera_module_callbacks_t *mCallbacks;
-    /* torch (led:flash_torch) bookkeeping; guarded by mTorchLock */
-    pthread_mutex_t mTorchLock;
-    bool mTorchOn;
-    int mOpenCameras;
 };
 
 }; /*namespace qcamera*/

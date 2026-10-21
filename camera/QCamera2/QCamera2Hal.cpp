@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2014, The Linux Foundataion. All rights reserved.
+/* Copyright (c) 2012-2015, The Linux Foundataion. All rights reserved.
 *
 * Redistribution and use in source and binary forms, with or without
 * modification, are permitted provided that the following conditions are
@@ -32,8 +32,6 @@
 
 static hw_module_t camera_common = {
     .tag = HARDWARE_MODULE_TAG,
-    /* 2.4 so cameraserver routes CameraManager.setTorchMode() to
-     * set_torch_mode instead of opening the camera for a torch preview */
     .module_api_version = CAMERA_MODULE_API_VERSION_2_4,
     .hal_api_version = HARDWARE_HAL_API_VERSION,
     .id = CAMERA_HARDWARE_MODULE_ID,

@@ -44,13 +44,12 @@
 #include <utils/Trace.h>
 #include <ui/Fence.h>
 #include <gralloc_priv.h>
+#include "util/QCameraFlash.h"
 #include "QCamera3HWI.h"
 #include "QCamera3Mem.h"
 #include "QCamera3Channel.h"
 #include "QCamera3PostProc.h"
 #include "QCamera3VendorTags.h"
-#include "QCamera2Factory.h"
-#include "QCameraTorch.h"
 #include <cutils/properties.h>
 
 using namespace android;
@@ -142,7 +141,7 @@ const QCamera3HardwareInterface::QCameraMap<
     { ANDROID_CONTROL_SCENE_MODE_SPORTS ,        CAM_SCENE_MODE_SPORTS },
     { ANDROID_CONTROL_SCENE_MODE_PARTY,          CAM_SCENE_MODE_PARTY },
     { ANDROID_CONTROL_SCENE_MODE_CANDLELIGHT,    CAM_SCENE_MODE_CANDLELIGHT },
-    { ANDROID_CONTROL_SCENE_MODE_BARCODE,        CAM_SCENE_MODE_BARCODE}
+    { ANDROID_CONTROL_SCENE_MODE_BARCODE,        CAM_SCENE_MODE_BARCODE }
 };
 
 const QCamera3HardwareInterface::QCameraMap<
@@ -226,7 +225,8 @@ const int32_t available_thumbnail_sizes[] = {0, 0,
                                              432, 288,
                                              480, 288,
                                              512, 288,
-                                             512, 384};
+                                             512, 384,
+                                             480, 480};
 
 const QCamera3HardwareInterface::QCameraMap<
         camera_metadata_enum_android_sensor_test_pattern_mode_t,
@@ -591,6 +591,15 @@ int QCamera3HardwareInterface::openCamera()
         ALOGE("Failure: Camera already opened");
         return ALREADY_EXISTS;
     }
+
+    rc = QCameraFlash::getInstance().reserveFlashForCamera(mCameraId);
+    if (rc < 0) {
+        ALOGE("%s: Failed to reserve flash for camera id: %d",
+                __func__,
+                mCameraId);
+        return UNKNOWN_ERROR;
+    }
+
     rc = camera_open((uint8_t)mCameraId, &mCameraHandle);
     if (rc) {
         ALOGE("camera_open failed. rc = %d, mCameraHandle = %p", rc, mCameraHandle);
@@ -630,6 +639,12 @@ int QCamera3HardwareInterface::closeCamera()
     rc = mCameraHandle->ops->close_camera(mCameraHandle->camera_handle);
     mCameraHandle = NULL;
     mCameraOpened = false;
+
+    if (QCameraFlash::getInstance().releaseFlashFromCamera(mCameraId) != 0) {
+        CDBG("%s: Failed to release flash for camera id: %d",
+                __func__,
+                mCameraId);
+    }
 
     return rc;
 }
@@ -4975,6 +4990,39 @@ int QCamera3HardwareInterface::initStaticMetadata(uint32_t cameraId)
                 idx+=4;
             }
             break;
+#ifdef VENDOR_EDIT
+        case HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED:
+            for (size_t i = 0; i < gCamCapability[cameraId]->hal3_preview_video_sizes_tbl_cnt; i++) {
+            available_stream_configs[idx] = scalar_formats[j];
+            available_stream_configs[idx+1] = gCamCapability[cameraId]->hal3_preview_video_sizes_tbl[i].width;
+            available_stream_configs[idx+2] = gCamCapability[cameraId]->hal3_preview_video_sizes_tbl[i].height;
+            available_stream_configs[idx+3] = ANDROID_SCALER_AVAILABLE_STREAM_CONFIGURATIONS_OUTPUT;
+            idx+=4;
+            }
+            break;
+        case HAL_PIXEL_FORMAT_YCbCr_420_888:
+            if (gCamCapability[cameraId]->islowfps == 0){
+                for (size_t i = 0; i < gCamCapability[cameraId]->picture_sizes_tbl_cnt; i++) {
+                available_stream_configs[idx] = scalar_formats[j];
+                available_stream_configs[idx+1] =
+                  gCamCapability[cameraId]->picture_sizes_tbl[i].width;
+                available_stream_configs[idx+2] =
+                  gCamCapability[cameraId]->picture_sizes_tbl[i].height;
+                available_stream_configs[idx+3] =
+                  ANDROID_SCALER_AVAILABLE_STREAM_CONFIGURATIONS_OUTPUT;
+                idx+=4;
+                }
+            } else {
+                for (size_t i = 0; i < gCamCapability[cameraId]->hal3_preview_video_sizes_tbl_cnt; i++) {
+                  available_stream_configs[idx] = scalar_formats[j];
+                  available_stream_configs[idx+1] = gCamCapability[cameraId]->hal3_preview_video_sizes_tbl[i].width;
+                  available_stream_configs[idx+2] = gCamCapability[cameraId]->hal3_preview_video_sizes_tbl[i].height;
+                  available_stream_configs[idx+3] = ANDROID_SCALER_AVAILABLE_STREAM_CONFIGURATIONS_OUTPUT;
+                  idx+=4;
+                }
+            }
+            break;
+#endif
         default:
             for (size_t i = 0; i < gCamCapability[cameraId]->picture_sizes_tbl_cnt; i++) {
                 available_stream_configs[idx] = scalar_formats[j];
@@ -5246,7 +5294,7 @@ int QCamera3HardwareInterface::initStaticMetadata(uint32_t cameraId)
             available_flash_levels, count);
 
     uint8_t flashAvailable;
-    if (gCamCapability[cameraId]->flash_available || QCameraTorch::hasTorch())
+    if (gCamCapability[cameraId]->flash_available)
         flashAvailable = ANDROID_FLASH_INFO_AVAILABLE_TRUE;
     else
         flashAvailable = ANDROID_FLASH_INFO_AVAILABLE_FALSE;
@@ -5937,8 +5985,16 @@ int QCamera3HardwareInterface::getCamInfo(uint32_t cameraId,
     info->device_version = CAMERA_DEVICE_API_VERSION_3_2;
     info->static_camera_characteristics = gStaticMetadata[cameraId];
 
-    pthread_mutex_unlock(&gCamLock);
+    //For now assume both cameras can operate independently.
+    info->conflicting_devices = NULL;
+    info->conflicting_devices_length = 0;
 
+    //For now assume default resource cost.
+    info->resource_cost = 100;
+    ALOGI("%s: camera %d resource cost is %d", __func__, cameraId,
+            info->resource_cost);
+
+    pthread_mutex_unlock(&gCamLock);
     return rc;
 }
 
@@ -7487,9 +7543,7 @@ int QCamera3HardwareInterface::close_camera_device(struct hw_device_t* device)
         ALOGE("NULL camera device");
         return BAD_VALUE;
     }
-    int cameraId = (int)hw->mCameraId;
     delete hw;
-    QCamera2Factory::camera_device_closed(cameraId);
 
     CDBG("%s: X", __func__);
     return ret;
@@ -7633,12 +7687,6 @@ int32_t QCamera3HardwareInterface::extractSceneMode(
  *==========================================================================*/
 bool QCamera3HardwareInterface::needRotationReprocess()
 {
-    if ((gCamCapability[mCameraId]->qcom_supported_feature_mask & CAM_QCOM_FEATURE_ROTATION) > 0) {
-        // current rotation is not zero, and pp has the capability to process rotation
-        CDBG_HIGH("%s: need do reprocess for rotation", __func__);
-        return true;
-    }
-
     return false;
 }
 
@@ -7680,12 +7728,7 @@ bool QCamera3HardwareInterface::needReprocess(uint32_t postprocess_mask)
  *==========================================================================*/
 bool QCamera3HardwareInterface::needJpegRotation()
 {
-   /*If the pp does not have the ability to do rotation, enable jpeg rotation*/
-    if (!(gCamCapability[mCameraId]->qcom_supported_feature_mask & CAM_QCOM_FEATURE_ROTATION)) {
-       CDBG("%s: Need Jpeg to do the rotation", __func__);
-       return true;
-    }
-    return false;
+    return true;
 }
 
 /*===========================================================================
@@ -7823,6 +7866,36 @@ void QCamera3HardwareInterface::getLogLevel()
         gCamHal3LogLevel = globalLogLevel;
 
     return;
+}
+
+/*===========================================================================
+* FUNCTION   : getFlashInfo
+*
+* DESCRIPTION: Retrieve information about whether the device has a flash.
+*
+* PARAMETERS :
+*   @cameraId  : Camera id to query
+*   @hasFlash  : Boolean indicating whether there is a flash device
+*                associated with given camera
+*   @flashNode : If a flash device exists, this will be its device node.
+*
+* RETURN     :
+*   None
+*==========================================================================*/
+void QCamera3HardwareInterface::getFlashInfo(const int cameraId,
+        bool& hasFlash,
+        char (&flashNode)[QCAMERA_MAX_FILEPATH_LENGTH])
+{
+    cam_capability_t* camCapability = gCamCapability[cameraId];
+    if (NULL == camCapability) {
+        hasFlash = false;
+        flashNode[0] = '\0';
+    } else {
+        hasFlash = camCapability->flash_available;
+        strlcpy(flashNode,
+                (char*)camCapability->flash_dev_name,
+                QCAMERA_MAX_FILEPATH_LENGTH);
+    }
 }
 
 }; //end namespace qcamera

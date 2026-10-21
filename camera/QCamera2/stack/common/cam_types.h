@@ -37,11 +37,11 @@
 
 #define CAM_MAX_NUM_BUFS_PER_STREAM 64
 #define MAX_METADATA_PRIVATE_PAYLOAD_SIZE_IN_BYTES 8096
-#define AWB_DEBUG_DATA_SIZE               (7029)
-#define AEC_DEBUG_DATA_SIZE               (1720)
-#define AF_DEBUG_DATA_SIZE                (652)
+#define AWB_DEBUG_DATA_SIZE               (69189)
+#define AEC_DEBUG_DATA_SIZE               (3921)
+#define AF_DEBUG_DATA_SIZE                (8487)
 #define ASD_DEBUG_DATA_SIZE               (100)
-#define STATS_BUFFER_DEBUG_DATA_SIZE      (74756)
+#define STATS_BUFFER_DEBUG_DATA_SIZE      (74773)
 
 #define CEILING64(X) (((X) + 0x0003F) & 0xFFFFFFC0)
 #define CEILING32(X) (((X) + 0x0001F) & 0xFFFFFFE0)
@@ -49,9 +49,9 @@
 #define CEILING4(X)  (((X) + 0x0003) & 0xFFFC)
 #define CEILING2(X)  (((X) + 0x0001) & 0xFFFE)
 
-#define MAX_ZOOMS_CNT 61
-#define MAX_SIZES_CNT 30 // Good
-#define MAX_EXP_BRACKETING_LENGTH 32 // Good
+#define MAX_ZOOMS_CNT 91
+#define MAX_SIZES_CNT 30
+#define MAX_EXP_BRACKETING_LENGTH 32
 #define MAX_ROI 5
 #define MAX_STREAM_NUM_IN_BUNDLE 6
 #define MAX_NUM_STREAMS          8
@@ -60,7 +60,7 @@
 #define CPPCHROMATIX_SIZE 36000
 #define SWPOSTPROCCHROMATIX_SIZE 36000
 #define AFTUNE_SIZE  10700
-#define MAX_SCALE_SIZES_CNT 8 // Good
+#define MAX_SCALE_SIZES_CNT 8
 #define MAX_SAMP_DECISION_CNT     64
 #define SENSOR_PHYSICAL_SIZE_CNT  2
 #define EXPOSURE_TIME_RANGE_CNT   2
@@ -290,7 +290,6 @@ typedef enum {
     CAM_FORMAT_YUV_444_NV24,
     CAM_FORMAT_YUV_444_NV42,
 
-    CAM_FORMAT_MOTO,
     CAM_FORMAT_MAX
 } cam_format_t;
 
@@ -518,6 +517,7 @@ typedef enum {
     CAM_ISO_MODE_800,
     CAM_ISO_MODE_1600,
     CAM_ISO_MODE_3200,
+    CAM_ISO_MODE_6400,
     CAM_ISO_MODE_MAX
 } cam_iso_mode_type;
 
@@ -621,7 +621,7 @@ typedef enum {
     CAM_SCENE_MODE_FACE_PRIORITY,
     CAM_SCENE_MODE_BARCODE,
     CAM_SCENE_MODE_HDR,
-    CAM_SCENE_MODE_MOTO,
+    CAM_SCENE_MODE_MANUAL,
     CAM_SCENE_MODE_MAX
 } cam_scene_mode_type;
 
@@ -753,7 +753,6 @@ typedef struct  {
     int32_t top;
     int32_t width;
     int32_t height;
-    volatile char moto_reserved[4];
 } cam_rect_t;
 
 typedef struct  {
@@ -897,7 +896,6 @@ typedef struct {
         cam_coordinate_type_t coordinate[MAX_ROI];
         uint32_t aec_roi_idx[MAX_ROI];
     } cam_aec_roi_position;
-    volatile char moto_reserved[12];
 } cam_set_aec_roi_t;
 
 typedef struct {
@@ -918,7 +916,6 @@ typedef enum {
 typedef struct {
     uint8_t denoise_enable;
     cam_denoise_process_type_t process_plates;
-    volatile char moto_reserved[4];
 } cam_denoise_param_t;
 
 #define CAM_FACE_PROCESS_MASK_DETECTION    (1U<<0)
@@ -1127,7 +1124,6 @@ typedef struct {
     cam_focus_mode_type focus_mode;        /* focus mode from backend */
     uint32_t focused_frame_idx;
     int32_t focus_pos;
-    volatile char moto_reserved[32];
 } cam_auto_focus_data_t;
 
 typedef struct {
@@ -1150,6 +1146,14 @@ typedef enum {
     DO_NOT_NEED_FUTURE_FRAME,
     NEED_FUTURE_FRAME,
 } cam_prep_snapshot_state_t;
+
+typedef enum {
+  RATIO_NOOP,
+  RATIO_1_1,
+  RATIO_4_3,
+  RATIO_16_9,
+  RATIO_MAX,
+} cam_crop_to_ratio_t;
 
 #define CC_GAINS_COUNT  4
 
@@ -1222,14 +1226,10 @@ typedef struct {
     uint32_t exposure_mode;
     uint32_t scenetype;
     float brightness;
-    float est_snap_exp_time;
-    int32_t est_snap_iso_value;
-    uint32_t est_snap_luma;
-    uint32_t est_snap_target;
-    volatile char moto_reserved[24];
 } cam_3a_params_t;
 
 typedef struct {
+    uint64_t sw_version_number;
     int32_t aec_debug_data_size;
     char aec_private_debug_data[AEC_DEBUG_DATA_SIZE];
 } cam_ae_exif_debug_t;
@@ -1246,6 +1246,10 @@ typedef struct {
 
 typedef struct {
     int32_t af_debug_data_size;
+    int32_t haf_debug_data_size;
+    int32_t tof_debug_data_size;
+    int32_t dciaf_debug_data_size;
+    int32_t pdaf_debug_data_size;
     char af_private_debug_data[AF_DEBUG_DATA_SIZE];
 } cam_af_exif_debug_t;
 
@@ -1257,6 +1261,7 @@ typedef struct {
 typedef struct {
     int32_t bg_stats_buffer_size;
     int32_t bhist_stats_buffer_size;
+    int32_t bg_config_buffer_size;
     char stats_buffer_private_debug_data[STATS_BUFFER_DEBUG_DATA_SIZE];
 } cam_stats_buffer_exif_debug_t;
 
@@ -1307,6 +1312,11 @@ typedef struct {
    uint32_t max_buffers;
 } cam_buffer_info_t;
 
+typedef enum {
+    CAM_CONTROLLABLE_OUT_NEED = 0,
+    CAM_CONTROLLABLE_OUT_NO_NEED = 1,
+} cam_controllable_out_t;
+
 typedef struct {
     cam_dimension_t stream_sizes[MAX_NUM_STREAMS];
     uint32_t num_streams;
@@ -1314,6 +1324,7 @@ typedef struct {
     uint32_t postprocess_mask[MAX_NUM_STREAMS];
     cam_buffer_info_t buffer_info;
     cam_is_type_t is_type;
+    cam_controllable_out_t controllable_out_needed;
 } cam_stream_size_info_t;
 
 typedef struct {
@@ -1326,6 +1337,11 @@ typedef struct {
     uint32_t num_streams;
     uint32_t stream_id[MAX_NUM_STREAMS];
 } cam_buf_divert_info_t;
+
+typedef struct {
+  uint8_t is_af_stats_info_valid;
+  int focus_value;
+}cam_af_stats_info_t;
 
 typedef  struct {
     uint8_t is_stats_valid;               /* if histgram data is valid */
@@ -1442,8 +1458,6 @@ typedef enum {
     /* Whether optical image stabilization is enabled. */
     CAM_INTF_META_LENS_OPT_STAB_MODE,
 
-    MOTO1,
-    MOTO2,
     /* specific to HAl1 */
     CAM_INTF_META_AUTOFOCUS_DATA,
     CAM_INTF_PARM_QUERY_FLASH4SNAP,
@@ -1462,14 +1476,12 @@ typedef enum {
     CAM_INTF_PARM_AF_ROI,
     CAM_INTF_PARM_SCE_FACTOR,
     CAM_INTF_PARM_FD,
-    MOTO3,
     CAM_INTF_PARM_MCE,
     CAM_INTF_PARM_HFR,
     CAM_INTF_PARM_REDEYE_REDUCTION,
     CAM_INTF_PARM_WAVELET_DENOISE,
     CAM_INTF_PARM_TEMPORAL_DENOISE,
     CAM_INTF_PARM_HISTOGRAM, /* 40 */
-    MOTO4,
     CAM_INTF_PARM_ASD_ENABLE,
     CAM_INTF_PARM_RECORDING_HINT,
     CAM_INTF_PARM_HDR,
@@ -1715,39 +1727,15 @@ typedef enum {
     /* Manual lens position info */
     CAM_INTF_PARM_MANUAL_FOCUS_POS,
     /* Manual White balance gains */
-    CAM_INTF_PARM_WB_MANUAL, // 183
+    CAM_INTF_PARM_WB_MANUAL,
     /* IMG LIB reprocess debug section */
     CAM_INTF_META_IMGLIB, /* cam_intf_meta_imglib_t */
     /* FLIP mode parameter*/
     CAM_INTF_PARM_FLIP,
-    MOTO5,
-    MOTO6,
-    MOTO7,
-    MOTO8,
-    MOTO9,
-    MOTO10,
-    MOTO11,
-    MOTO12,
-    MOTO13,
-    MOTO14,
-    MOTO15,
-    MOTO16,
-    MOTO17,
-    MOTO18,
-    MOTO19,
-    MOTO20,
-    MOTO21,
-    MOTO22,
-    MOTO23,
-    MOTO24,
-    MOTO25,
-    MOTO26,
-    MOTO27,
-    MOTO28,
-    MOTO29,
-    MOTO30,
-    MOTO31,
-    CAM_INTF_PARM_MAX // 213
+    CAM_INTF_PARM_RATIO,
+    CAM_INTF_META_URGENT_STREAM_ID,
+    CAM_INTF_META_BF_STATS,
+    CAM_INTF_PARM_MAX
 } cam_intf_parm_type_t;
 
 typedef struct {
@@ -1859,6 +1847,12 @@ typedef struct {
 #define CAM_MAX_SHADING_MAP_HEIGHT 13
 #define CAM_MAX_TONEMAP_CURVE_SIZE    512
 #define CAM_MAX_FLASH_BRACKETING    5
+
+typedef struct {
+  float x;
+  float y;
+  float z;
+} cam_set_gsensor_t;
 
 typedef struct {
     /* A 1D array of pairs of floats.
@@ -2256,5 +2250,20 @@ typedef struct {
 typedef struct {
     cam_intf_meta_imglib_input_aec_t meta_imglib_input_aec;
 } cam_intf_meta_imglib_t;
+
+typedef struct {
+    uint32_t stream_user_id;
+} cam_intf_urgent_stream_request_t;
+
+typedef struct {
+    void *pIShandle;
+    int32_t (*image_stability_process)(const uint8_t* const[],
+                        const uint8_t* const[],
+                        uint32_t numImages,
+                        uint32_t srcStrideY,
+                        uint32_t srcStrideVU,
+                        uint32_t srcWidth,
+                        uint32_t srcHeight);
+}image_stability_t;
 
 #endif /* __QCAMERA_TYPES_H__ */

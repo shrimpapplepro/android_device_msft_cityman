@@ -1,4 +1,4 @@
-/* Copyright (c) 2026, archienz. All rights reserved.
+/* Copyright (c) 2015, The Linux Foundataion. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -9,6 +9,9 @@
  *       copyright notice, this list of conditions and the following
  *       disclaimer in the documentation and/or other materials provided
  *       with the distribution.
+ *     * Neither the name of The Linux Foundation nor the names of its
+ *       contributors may be used to endorse or promote products derived
+ *       from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED
  * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
@@ -21,33 +24,43 @@
  * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
  */
 
-#ifndef __QCAMERA_TORCH_H__
-#define __QCAMERA_TORCH_H__
+#ifndef __QCAMERA_FLASH_H__
+#define __QCAMERA_FLASH_H__
 
-#include <stdint.h>
+#include <hardware/camera_common.h>
+
+extern "C" {
+#include <mm_camera_interface.h>
+}
 
 namespace qcamera {
 
-/* cityman (Lumia 950 RM-1104): the torch is a plain GPIO LED (TLMM 12) that
- * the kernel exposes as /sys/class/leds/led:flash_torch. mm-camera has no
- * flash driver for it (no sky81296, no FlashName in msm8992_camera.xml), so
- * the sensor capability reports zero flash modes. This class drives that LED
- * directly from the HAL so both camera_module_t::set_torch_mode (Quick
- * Settings flashlight) and the HAL1 "flash-mode=torch" parameter work.
- *
- * Only led:flash_torch is written. led:torch_0 / led:torch_1 are the red
- * indicator channels on this board and must not be touched. */
-class QCameraTorch {
+class QCameraFlash {
 public:
-    /* true when the LED node exists and is writable by this process */
-    static bool hasTorch();
-    /* 0 on success, -errno on failure */
-    static int32_t setTorch(bool on);
-    static bool isTorchOn();
+    static QCameraFlash& getInstance();
+
+    int32_t registerCallbacks(const camera_module_callbacks_t* callbacks);
+    int32_t initFlash(const int camera_id);
+    int32_t setFlashMode(const int camera_id, const bool on);
+    int32_t deinitFlash(const int camera_id);
+    int32_t reserveFlashForCamera(const int camera_id);
+    int32_t releaseFlashFromCamera(const int camera_id);
+
+private:
+    QCameraFlash();
+    virtual ~QCameraFlash();
+    QCameraFlash(const QCameraFlash&);
+    QCameraFlash& operator=(const QCameraFlash&);
+
+    const camera_module_callbacks_t *m_callbacks;
+    int32_t m_flashFds[MM_CAMERA_MAX_NUM_SENSORS];
+    bool m_flashOn[MM_CAMERA_MAX_NUM_SENSORS];
+    bool m_cameraOpen[MM_CAMERA_MAX_NUM_SENSORS];
 };
 
 }; // namespace qcamera
 
-#endif /* __QCAMERA_TORCH_H__ */
+#endif /* __QCAMERA_FLASH_H__ */
