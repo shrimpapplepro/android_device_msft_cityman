@@ -4,6 +4,8 @@
 
 Device tree and hardware support for the Microsoft Lumia 950 XL (`cityman`) powered by Qualcomm Snapdragon 810 (MSM8994).
 
+> **This fork (`lineage-18.1-camera`)** adds a working rear camera and fixes audio on top of shadowofleaf96's port. Download and install guide: [Releases](https://github.com/shrimpapplepro/android_device_msft_cityman/releases). The status list below is the upstream list, corrected where our testing on a 950 XL disagrees. Items not mentioned in the release notes were not re-tested by us.
+
 ---
 
 ### What is Working
@@ -38,14 +40,14 @@ Device tree and hardware support for the Microsoft Lumia 950 XL (`cityman`) powe
   - Bluetooth 4.1 (Qualcomm Rome SoC).
   - NFC (NXP PN547 stack).
   - USB Type-C MTP file transfer and Rooted ADB debugging.
-- **Flashlight / Torch**:
-  - Quick Settings flashlight tile fully operational (toggle on/off).
-  - Driven via GPIO 12 (`led:flash_torch` sysfs with fallback) and HAL metadata reporting.
 - **Power & Battery**:
   - 13W USB Fast Charging with safety timer protections.
   - Precise battery fuel gauge reporting for Microsoft BV-T4D 3340mAh battery via PMI8994.
   - Energy-aware power tuning: `schedutil` governor, restored CPU retention/L2 idle states, and optimized interactive boost durations (100ms) to ensure cool idle thermals (~34°C) and extended battery life.
   - Resolved `android.hardware.audio.service` runaway 100% CPU lockup and severe thermal drain.
+- **Rear Camera (Sony IMX230)** *(this fork)*:
+  - Preview and full-resolution 5344x4016 photos in Snap, via the OnePlus 2 MSM8994 camera stack and an IMX230 adapter.
+  - Fixed focus (no autofocus yet), no flash.
 - **Sensors**:
   - Accelerometer, Gyroscope, Magnetometer.
   - Ambient Light Sensor, Proximity Sensor.
@@ -63,9 +65,10 @@ Device tree and hardware support for the Microsoft Lumia 950 XL (`cityman`) powe
 ### Not Working / In Progress
 
 - **Camera & Imaging**:
-  - Rear Camera (20MP PureView Sony IMX230): Sensor initializes and binds to ISP, but viewfinder shows a black preview.
-  - Front-Facing Camera: Not working.
+  - Rear Camera: autofocus not implemented (fixed focus).
+  - Front-Facing Camera: Not working (the module did not answer on any camera bus on our test unit).
   - Iris Scanner: Not working.
+- **Flashlight / Torch**: Not working on the 950 XL. The GPIO 12 `led:flash_torch` node drives nothing on this model. The XL's flash is an ams AS3638 LED driver on the camera I2C bus (CCI0, 0x30), which still needs a driver.
 - **VoLTE / VoWiFi**: Carrier-specific IMS profile customization (standard Circuit-Switched Fallback handles 2G/3G voice calls reliably).
 
 ---
