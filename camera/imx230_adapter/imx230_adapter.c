@@ -39,6 +39,8 @@
 #define CHROMA_COUNT    0x162c
 #define EXP_CALC        0x1630
 #define EXP_FILL        0x1634
+#define ACT_NAME        0x0040   /* sensor_slave_info actuator_name[32] */
+#define NAME_LEN        32
 
 /* IMX230 SMIA++ registers */
 #define REG_FRAME_LENGTH  0x0340
@@ -193,6 +195,11 @@ void *sensor_open_lib(void) {
 
   memcpy(lib, tmpl, OP2_SIZE);                 /* OP2 layout + unknown tail fields */
   memcpy(lib, mot, OP2_OUT);                   /* identical region */
+  /* Lens: the cityman module has a ROHM BU63165 (Windows lens protocol in the kernel's
+   * msm_actuator cityman mode), not Moto's LC898212. The OnePlus 2 BU63165 tuning
+   * supplies the AF steps. No OIS lib: its init targets the OnePlus 2 wiring. */
+  memset(lib + ACT_NAME, 0, NAME_LEN);
+  strcpy((char *)lib + ACT_NAME, "rohm_bu63165gwl");
   for (int i = 0; i < N_RES; i++) {
     uint8_t *o = lib + OP2_OUT + i * OP2_OUT_SZ;
     memcpy(o, mot + OP2_OUT + i * MOT_OUT_SZ, OP2_OUT_SZ);
