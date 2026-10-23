@@ -22,6 +22,14 @@ static int g_faked_radio_off = 0;
 static RIL_Token g_sim_status_token = NULL;
 static RIL_Token g_radio_power_on_token = NULL;
 
+/*
+ * The registration, operator and IMSI fixes below were written for one Maroc
+ * Telecom SIM. Without a SIM they turn "searching" into a fake Moroccan home
+ * network (Android then sets the country, time zone and carrier label from it),
+ * so they only apply while the real RIL reports a card present.
+ */
+static int g_sim_present = 0;
+
 /* Diagnostic token tracking */
 #define FALLBACK_IMSI "604016336070271"
 
@@ -52,6 +60,7 @@ static void wrapped_OnRequestComplete(RIL_Token t, RIL_Errno e,
         g_sim_status_token = NULL;
         if (e == RIL_E_SUCCESS && response != NULL && responselen >= sizeof(RIL_CardStatus_v6)) {
             RIL_CardStatus_v6 *cs = (RIL_CardStatus_v6 *)response;
+            g_sim_present = cs->card_state == RIL_CARDSTATE_PRESENT;
             ALOGI("  -> [RESP] GET_SIM_STATUS: card_state=%d, num_apps=%d, gsm_sub_idx=%d",
                   cs->card_state, cs->num_applications, cs->gsm_umts_subscription_app_index);
 
@@ -92,7 +101,7 @@ static void wrapped_OnRequestComplete(RIL_Token t, RIL_Errno e,
             for (int i = 0; i < count && i < 15; i++) {
                 ALOGI("  -> [RESP] VOICE_REG[%d]=%s", i, strings[i] ? strings[i] : "(null)");
             }
-            if (count >= 1 && strings[0]) {
+            if (g_sim_present && count >= 1 && strings[0]) {
                 int reg_state = atoi(strings[0]);
                 if (reg_state == 12 || reg_state == 2) {
                     ALOGI("  -> [OVERRIDE] Promoting VOICE_REG[0] from %d to 1 (IN_SERVICE, Home)", reg_state);
@@ -113,7 +122,7 @@ static void wrapped_OnRequestComplete(RIL_Token t, RIL_Errno e,
             for (int i = 0; i < count && i < 11; i++) {
                 ALOGI("  -> [RESP] DATA_REG[%d]=%s", i, strings[i] ? strings[i] : "(null)");
             }
-            if (count >= 1 && strings[0]) {
+            if (g_sim_present && count >= 1 && strings[0]) {
                 int reg_state = atoi(strings[0]);
                 if (reg_state == 2 || reg_state == 12) {
                     ALOGI("  -> [OVERRIDE] Promoting DATA_REG[0] from %d to 1 (IN_SERVICE, Home)", reg_state);
@@ -136,7 +145,7 @@ static void wrapped_OnRequestComplete(RIL_Token t, RIL_Errno e,
             for (int i = 0; i < count && i < 3; i++) {
                 ALOGI("  -> [RESP] OPERATOR[%d]=%s", i, strings[i] ? strings[i] : "(null)");
             }
-            if (count >= 3) {
+            if (g_sim_present && count >= 3) {
                 if (!strings[0] || strlen(strings[0]) == 0) strings[0] = "Maroc Telecom";
                 if (!strings[1] || strlen(strings[1]) == 0) strings[1] = "IAM";
                 if (!strings[2] || strlen(strings[2]) == 0) strings[2] = "60401";
@@ -224,7 +233,7 @@ static void wrapped_onRequest(int request, void *data, size_t datalen, RIL_Token
         ALOGI("  -> GET_SIM_STATUS sent to real RIL");
     }
 
-    if (request == RIL_REQUEST_GET_IMSI) {
+    if (request == RIL_REQUEST_GET_IMSI && g_sim_present) {
         ALOGI("  -> [REQ] RIL_REQUEST_GET_IMSI intercepted. Answering directly with IMSI %s", FALLBACK_IMSI);
         char *fallback_imsi = FALLBACK_IMSI;
         g_original_env->OnRequestComplete(t, RIL_E_SUCCESS, fallback_imsi, sizeof(char *));
