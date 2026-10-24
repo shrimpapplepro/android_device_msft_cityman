@@ -1,5 +1,59 @@
 # Microsoft Lumia 950 XL (cityman)
 
+## LineageOS 20 (Android 13), branch `lineage-20.0`
+
+Unofficial LineageOS 20 for the Lumia 950 XL, built on the [LineageOS-UL](https://github.com/LineageOS-UL) lineage-20.0 manifest (no-BPF patches for old kernels) with this device tree, the msm-3.10 kernel and the 18.1 vendor blobs.
+
+### Status (tested on our phone)
+
+- **Works:** boot, display/touch, Wi-Fi (YouTube playback), Bluetooth (pairing and a BLE gamepad as input), audio playback, internal storage, rear camera (preview and full-resolution photos in Aperture, autofocus), USB adb.
+- **Does not work yet:**
+  - **Cellular**: the modem stays off. The old `pm-proxy` blob crashes on 13, so the modem never gets its power vote. Bringing the modem up by hand froze the phone, so `pm-proxy` is disabled (set `persist.vendor.cityman.pm_proxy=1` to try it).
+  - **LineageOS recovery USB** (no adb/sideload). Use the installer's TWRP instead.
+  - Front camera, rear flash (same as 18.1).
+- SELinux is permissive. Storage is unencrypted (the 3.10 kernel has no file-based encryption, and Android 13 dropped full-disk encryption).
+- Camera preview runs at about 15 fps, because the sensor stays in its full-size mode.
+
+### Install (wipes data)
+
+Coming from 18.1 or Windows, set the phone up with [installer-cityman](https://github.com/shrimpapplepro/installer-cityman) first. Then:
+
+1. `fastboot boot twrp.img` (from the installer's `DATA` folder).
+2. In TWRP: **Wipe > Format Data** (required when coming from 18.1).
+3. `adb push lineage-20.0-*-cityman.zip /sdcard/` and install it in TWRP (or `adb shell twrp install /sdcard/<zip>`).
+4. If TWRP reboots straight after the install, write `boot.img` from the release with `dd` to the `boot` partition in TWRP, then reboot.
+
+### What had to change for Android 13 on this kernel
+
+- **kernel**:
+  - binder sender security context (keystore2 needs it);
+  - FUSE 7.23 `fuse_init_out` size (`/storage/emulated` never mounted without it);
+  - IMX230 readout rotated 180 deg plus the matching VFE Bayer-pattern remap.
+- **device**:
+  - `/data` without `encryptable=footer` (13 rejects the whole fstab otherwise);
+  - real-time budgets for cpuctl groups (3.10 `RT_GROUP_SCHED`);
+  - Bluetooth profile and `ro.bt.bdaddr_path` properties;
+  - 32-bit camera service path and camera mode limits.
+- **Patches outside this repo**: see `lineage-20/patches`:
+  - Bluetooth: ROME vendor-opcode fixup, LL-privacy opt-out, null-name pairing crash;
+  - cameraserver built 32-bit, HAL1 camera-info cache;
+  - `libbt-vendor` path.
+
+### Build
+
+```
+repo init -u https://github.com/LineageOS-UL/android.git -b lineage-20.0 --git-lfs --depth=1
+mkdir -p .repo/local_manifests
+curl -o .repo/local_manifests/cityman.xml https://raw.githubusercontent.com/shrimpapplepro/android_device_msft_cityman/lineage-20.0/lineage-20/local_manifest.xml
+repo sync -c -j8
+device/msft/cityman/lineage-20/prepare.sh
+source build/envsetup.sh && lunch lineage_cityman-userdebug && WITH_ADB_INSECURE=true m bacon
+```
+
+`prepare.sh` merges current LineageOS lineage-20.0 into the UL forks of frameworks/base, frameworks/av and the Bluetooth/Wi-Fi modules, then applies the patches. Our tree was prepared step by step; the script reproduces those steps but has not been run on a fresh sync.
+
+---
+
 ## LineageOS 18.1 (Android 11) Port Status
 
 Device tree and hardware support for the Microsoft Lumia 950 XL (`cityman`) powered by Qualcomm Snapdragon 810 (MSM8994).
