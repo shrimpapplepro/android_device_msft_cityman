@@ -5,7 +5,7 @@ include $(CLEAR_VARS)
 # the original Moto lib is installed as libmmcamera_mot_imx230_moto.so.
 LOCAL_MODULE := libmmcamera_mot_imx230
 LOCAL_SRC_FILES := imx230_adapter.c
-LOCAL_SHARED_LIBRARIES := libdl liblog
+LOCAL_SHARED_LIBRARIES := libdl liblog libcutils
 LOCAL_CFLAGS := -Wall -Werror
 LOCAL_MULTILIB := 32
 LOCAL_VENDOR_MODULE := true

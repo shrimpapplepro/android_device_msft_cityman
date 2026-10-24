@@ -21,6 +21,8 @@
 #include <stdint.h>
 #include <string.h>
 #include <log/log.h>
+#include <stdlib.h>
+#include <cutils/properties.h>
 
 #undef LOG_TAG
 #define LOG_TAG "imx230_adapter"
@@ -237,6 +239,22 @@ void *sensor_open_lib(void) {
   U32(lib, 0x1648) = U32(mot, 0x163c);
   if (U32(mot, OP2_OUT + BIN_MODE * MOT_OUT_SZ) == 0)       /* Moto has 7 modes */
     add_bin_mode(lib);
+
+  /* Debug knob: vendor.cityman.cam.poke = "off=val[,off=val...]" (hex) patches
+   * 32-bit words of the built sensor_lib, e.g. to probe unknown fields. */
+  char poke[PROPERTY_VALUE_MAX];
+  if (property_get("vendor.cityman.cam.poke", poke, "") > 0) {
+    char *save = NULL;
+    for (char *t = strtok_r(poke, ",", &save); t; t = strtok_r(NULL, ",", &save)) {
+      char *eq = strchr(t, '=');
+      if (!eq) continue;
+      unsigned long off = strtoul(t, NULL, 16), val = strtoul(eq + 1, NULL, 16);
+      if (off + 4 <= OP2_SIZE) {
+        ALOGI("poke sensor_lib+0x%lx: 0x%x -> 0x%lx", off, U32(lib, off), val);
+        U32(lib, off) = (uint32_t)val;
+      }
+    }
+  }
 
   ALOGI("built OP2 sensor_lib for %s: %u modes, %u chromatix sets, %ux%u",
         (const char *)lib, U32(lib, 0x0c4c), U32(lib, CHROMA_COUNT),
