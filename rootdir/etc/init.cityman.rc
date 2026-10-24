@@ -388,7 +388,10 @@ service per_proxy /vendor/bin/pm-proxy
     group system net_raw
     disabled
 
-on property:init.svc.per_mgr=running
+# pm-proxy (the modem's power vote) aborts with stack corruption on 13: the
+# A11-era libperipheral_client builds a smaller Parcel than libbinder now
+# has. Not started until the modem bring-up is redone; the modem stays off.
+on property:init.svc.per_mgr=running && property:persist.vendor.cityman.pm_proxy=1
     start per_proxy
 
 on property:sys.shutdown.requested=*
