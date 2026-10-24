@@ -177,7 +177,11 @@ static void add_bin_mode(uint8_t *l) {
   U32(o, 0x10) = 2;                                       /* binning factor */
   *(float *)(o + 0x14) = 7.5f;
   *(float *)(o + 0x18) = 30.0f;
-  U32(o, 0x1c) = 1;                                       /* default (preview/snapshot) */
+  /* Keep the entry (the table length is what makes the first open after boot
+   * stream cleanly) but give it no mode type, so sensor_pick_resolution never
+   * selects it: streaming this binned mode hard-resets the SoC (PS_HOLD) two
+   * frames in, and a 4:3 preview <= 2496x1872 (Aperture's 1440x1080) picks it. */
+  U32(o, 0x1c) = 0;
   *(float *)(o + 0x28) = 1.0f;
   memcpy(l + CSI_BASE + BIN_MODE * CSI_SZ, l + CSI_BASE, CSI_SZ);   /* CSI/LUT like mode 0 */
   memcpy(l + OP2_CHROMA + BIN_MODE * OP2_CHROMA_SZ, l + OP2_CHROMA, OP2_CHROMA_SZ);
