@@ -4,6 +4,8 @@
 
 cc_binary {
     name: "cityman-vk-sfwin",
+    // Android 11 libgui APIs (ui/DisplayConfig.h); not ported to 13
+    enabled: false,
     srcs: ["main.cpp"],
     vendor: false,
     proprietary: false,

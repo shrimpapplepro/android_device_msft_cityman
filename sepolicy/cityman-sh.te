@@ -19,3 +19,7 @@ allow cityman-sh shell_exec:file r_file_perms;
 
 # execute toybox/toolbox
 allow cityman-sh toolbox_exec:file rx_file_perms;
+
+# 13: platform labels /data/misc/radio as radio_core_data_file
+allow cityman-sh radio_core_data_file:file create_file_perms;
+allow cityman-sh radio_core_data_file:dir create_dir_perms;

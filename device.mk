@@ -27,7 +27,7 @@ $(call inherit-product, frameworks/native/build/phone-xhdpi-2048-dalvik-heap.mk)
 PRODUCT_TAGS += dalvik.gc.type-precise
 
 # Display
-TARGET_SCREEN_DENSITY := 564
+TARGET_SCREEN_DENSITY := 515
 
 # Screen density
 PRODUCT_AAPT_CONFIG := normal
@@ -87,8 +87,7 @@ PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/configs/ld.config.txt:$(TARGET_COPY_OUT_SYSTEM)/etc/swcodec/ld.config.txt
 
 
-PRODUCT_PACKAGES += \
-    qmihal
+PRODUCT_PACKAGES +=
     
 # Audio
 PRODUCT_PACKAGES += \
@@ -110,8 +109,7 @@ PRODUCT_PACKAGES += \
     tinymix \
     tinyplay \
     tinycap \
-    tinypcminfo \
-    dsm_ctrl
+    tinypcminfo
 
 USE_XML_AUDIO_POLICY_CONF := 1
 
@@ -161,7 +159,6 @@ PRODUCT_PACKAGES += \
     android.hardware.camera.provider@2.4-impl \
     camera.device@1.0-impl \
     camera.device@3.2-impl \
-    Snap \
     msm8994_camera.xml \
     mot_imx230_chromatix.xml \
     msm8994_camera.xml.system \
@@ -169,8 +166,7 @@ PRODUCT_PACKAGES += \
 
 
 PRODUCT_PACKAGES += \
-    vendor.qti.hardware.camera.device@1.0 \
-    vendor.qti.hardware.camera.device@1.0_vendor
+    vendor.qti.hardware.camera.device@1.0
 
 $(call add-product-sanitizer-module-config,cameraserver,never)
 $(call add-product-sanitizer-module-config,mm-qcamera-daemon,never)
@@ -179,13 +175,10 @@ $(call add-product-sanitizer-module-config,mm-qcamera-daemon,never)
 PRODUCT_PACKAGES += \
     android.hardware.graphics.allocator@2.0-impl \
     android.hardware.graphics.allocator@2.0-service \
-    android.hardware.graphics.composer@2.1-impl \
     android.hardware.graphics.composer@2.1-service \
     android.hardware.graphics.mapper@2.0-impl \
-    android.hardware.graphics.mapper@2.0-service \
     gralloc.msm8994 \
     hwcomposer.msm8994 \
-    libgenlock \
     memtrack.msm8994 \
     android.hardware.memtrack@1.0-impl \
     android.hardware.memtrack@1.0-service
@@ -224,8 +217,6 @@ PRODUCT_PACKAGES += \
 # GPS
 PRODUCT_PACKAGES += \
     libgps.utils \
-    libgnss \
-    liblocation_api \
     gps.msm8994
 
 PRODUCT_COPY_FILES += \
@@ -240,9 +231,9 @@ PRODUCT_PACKAGES += \
 # HIDL
 PRODUCT_PACKAGES += \
     libhidltransport \
-    libhidltransport.vendor \
+    libhidltransport \
     libhwbinder \
-    libhwbinder.vendor
+    libhwbinder
 
 # IMS
 PRODUCT_PACKAGES += \
@@ -298,7 +289,6 @@ PRODUCT_PACKAGES += \
     libOmxCore \
     libmm-omxcore \
     libOmxVdec \
-    libOmxVdecHevc \
     libOmxVenc
 
 PRODUCT_COPY_FILES += \
@@ -369,7 +359,7 @@ PRODUCT_PACKAGES += \
     qti_telephony_utils.xml \
     libril_wrapper \
     lumia-modem-init \
-    libperipheral_client \
+    libperipheral_client
 
 PRODUCT_BOOT_JARS += \
     telephony-ext
@@ -377,9 +367,6 @@ PRODUCT_BOOT_JARS += \
 PRODUCT_DEFAULT_PROPERTY_OVERRIDES += \
     persist.radio.snapshot_enabled=1 \
     persist.radio.snapshot_timer=10 \
-    ro.adb.secure=0 \
-    ro.secure=0 \
-    ro.debuggable=1 \
     persist.sys.usb.config=adb
     
 # Shims
@@ -399,7 +386,7 @@ PRODUCT_PACKAGES += \
     libqti-perfd-client
 
 # The Lumia 950 XL has 3GB RAM — low_ram mode is for 512MB-1GB devices.
-# PRODUCT_PROPERTY_OVERRIDES += \
+# PRODUCT_PROPERTY_OVERRIDES +=
 #     ro.config.low_ram=true
 PRODUCT_PACKAGES += \
     sensors.cityman \
@@ -440,7 +427,6 @@ PRODUCT_PACKAGES += \
     libwpa_client \
     hostapd \
     wificond \
-    wifilogd \
     wpa_supplicant \
     wpa_supplicant.conf \
     cityman_wlan_mac
@@ -475,13 +461,11 @@ $(call inherit-product-if-exists, vendor/qcom/gpu/msm8994/msm8994-gpu-vendor.mk)
 PRODUCT_PACKAGES -= webview
 
 # USB Debugging (Early ADB)
+# 13 rejects duplicate system props: ro.secure/ro.debuggable come from the
+# userdebug build, ro.adb.secure=0 from WITH_ADB_INSECURE=true (~/build20.sh).
 PRODUCT_SYSTEM_DEFAULT_PROPERTIES += \
-    ro.secure=0 \
-    ro.adb.secure=0 \
-    ro.debuggable=1 \
     sys.usb.configfs=0 \
-    sys.usb.config=adb \
-    persist.sys.usb.config=adb
+    sys.usb.config=adb
     
 $(call inherit-product-if-exists, device/msft/cityman/cityman-vulkan.mk)
 ifneq ($(wildcard vendor/msft/cityman/cityman-dsp.mk),)
@@ -493,3 +477,10 @@ endif
 ifneq ($(wildcard vendor/msft/cityman/cityman-camera-xml.mk),)
 $(call inherit-product, vendor/msft/cityman/cityman-camera-xml.mk)
 endif
+
+# Charger (BOARD_CHARGER_ENABLE_SUSPEND was removed in 12)
+PRODUCT_VENDOR_PROPERTIES += \
+    ro.charger.enable_suspend=true
+
+# Prebuilt Qualcomm apps predate the S+ <uses-library> verification
+PRODUCT_BROKEN_VERIFY_USES_LIBRARIES := true
