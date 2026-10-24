@@ -1,5 +1,105 @@
 # Microsoft Lumia 950 XL (cityman)
 
+## Android 13 is here
+
+The Lumia 950 XL now runs **Android 13 (LineageOS 20)**. As far as we know, this is the first Android 13 build for the 950 XL; until now the newest Android on this phone was 11 (LineageOS 18.1).
+
+**[Download the latest release](https://github.com/shrimpapplepro/android_device_msft_cityman/releases/tag/20261024-lineage20-sleep)**. You need both files: `lineage-20.0-20261024-UNOFFICIAL-cityman.zip` and `boot-20261024-lineage20-sleep-cityman.img`.
+
+### What works (tested on our phone)
+
+- Boot, display and touch
+- Wi-Fi and Bluetooth (pairing, and a BLE gamepad as input)
+- Audio playback through the loudspeaker
+- Rear camera in Aperture: preview, full-resolution photos and autofocus. Preview runs at about 15 fps.
+- Internal storage and USB adb
+- Deep sleep with the screen off
+
+### Not working yet
+
+- **Cellular: no calls, SMS or mobile data.** The modem stays off on Android 13. If you need your SIM, use [Android 11](#lineageos-181-android-11-port-status) for now.
+- LineageOS recovery has no USB, so this guide uses TWRP instead.
+- Front camera and rear flash, same as on Android 11.
+
+SELinux is permissive. `/data` is unencrypted: the phone's 3.10 kernel has no file-based encryption, and Android 13 removed full-disk encryption.
+
+---
+
+## How to install Android 13
+
+Pick your starting point:
+
+- **[A. From scratch](#a-from-scratch-the-phone-runs-windows-10-mobile)**: the phone still runs Windows 10 Mobile.
+- **[B. From TWRP](#b-from-twrp-the-phone-already-runs-android)**: the phone already runs Android (Android 11, or an earlier Android 13 build).
+
+### What you need
+
+- A PC and a USB cable.
+- `adb` and `fastboot`. On Windows, they are in the `bin` folder of [installer-cityman](https://github.com/shrimpapplepro/installer-cityman) (**Code > Download ZIP**). On Linux or macOS, install [Android platform-tools](https://developer.android.com/tools/releases/platform-tools).
+- `twrp.img` from installer-cityman's `DATA` folder.
+- Both files from the [release](https://github.com/shrimpapplepro/android_device_msft_cityman/releases/tag/20261024-lineage20-sleep). Check them against the md5 or sha256 checksums on the release page before you flash.
+- A battery that is at least half charged.
+
+Run every command below from the folder that holds the two release files and `twrp.img`.
+
+### A. From scratch: the phone runs Windows 10 Mobile
+
+The installer can't put Android 13 on a Windows phone directly yet. It installs Android 11 first and takes care of the steps that need care: unlocking the bootloader, backing up your phone's unique data, partitioning, TWRP and the modem firmware. Then you move to Android 13 with section B.
+
+1. Download [installer-cityman](https://github.com/shrimpapplepro/installer-cityman) (**Code > Download ZIP**) and unzip it.
+2. Download the Android 11 zip, `lineage-18.1-20261023-UNOFFICIAL-cityman.zip`, from the [Android 11 release](https://github.com/shrimpapplepro/android_device_msft_cityman/releases/tag/20261023-charging). Put it next to `Install LineageOS.cmd`.
+3. Follow the [installer's guide](https://github.com/shrimpapplepro/installer-cityman#readme): unlock the bootloader with WPinternals, switch to Mass Storage Mode, then run `Install LineageOS.cmd`.
+4. **Keep the `backup-<date>` folder** the installer creates. It holds your IMEI, radio calibration and Wi-Fi/Bluetooth addresses, and it can't be downloaded again.
+5. Wait until Android 11 has booted. Then continue with section B. You are coming from Android 11, so the Format Data step applies to you.
+
+### B. From TWRP: the phone already runs Android
+
+1. **Turn on USB debugging.** Open **Settings > About phone** and tap **Build number** seven times. Then turn on **Settings > System > Developer options > USB debugging**. Connect the phone and allow the PC when the phone asks.
+2. **Reboot to the bootloader:**
+   ```
+   adb reboot bootloader
+   ```
+   The phone shows a black screen with text (LK2ND). Check that `fastboot devices` lists it. On Windows, if it doesn't, open Device Manager: the phone should show up as *Android Bootloader Interface*. If it has a warning sign, install the [Google USB driver](https://developer.android.com/studio/run/win-usb) for it.
+3. **Start TWRP.** This only runs TWRP. It doesn't install it.
+   ```
+   fastboot boot twrp.img
+   ```
+   Wait until TWRP's main screen is up and `adb devices` lists the phone as `recovery`.
+4. **Format Data, only if you're coming from Android 11 (or from section A).** This erases all apps and files on the phone, so copy anything you want to keep to your PC first. In TWRP, tap **Wipe > Format Data**, type `yes` and confirm.
+   If you're updating from an earlier Android 13 build, skip this step: your apps and files are kept.
+5. **Install the zip.** It takes a few minutes.
+   ```
+   adb push lineage-20.0-20261024-UNOFFICIAL-cityman.zip /sdcard/
+   adb shell twrp install /sdcard/lineage-20.0-20261024-UNOFFICIAL-cityman.zip
+   ```
+   You can also tap **Install** in TWRP and pick the zip.
+6. **Write the boot image.** TWRP sometimes reboots before the zip has written its boot image, so always write it yourself. If TWRP has already rebooted, start it again with steps 2 and 3 first.
+   ```
+   adb push boot-20261024-lineage20-sleep-cityman.img /tmp/
+   adb shell dd if=/tmp/boot-20261024-lineage20-sleep-cityman.img of=/dev/block/platform/soc.0/f9824900.sdhci/by-name/boot
+   ```
+7. **Reboot:**
+   ```
+   adb reboot
+   ```
+   The first boot of Android 13 takes a few minutes.
+
+### If something goes wrong
+
+- **`adb` doesn't see the phone after a failed boot:** hold **Power + Volume Down** for about 10 seconds to force a restart. Run `adb reboot bootloader` as soon as `adb devices` lists the phone, then carry on from step 3.
+- **The phone restarts in a loop, or shows the Windows logo or a sad face:** use the installer's **Phone won't start** option (`installer.bat`, option 4). See the [installer's troubleshooting table](https://github.com/shrimpapplepro/installer-cityman#if-something-goes-wrong).
+- **No sound, or TWRP is gone:** use the installer's **Repair sound / signal** option (`installer.bat`, option 3). Your apps and files are kept.
+
+### Going back to Android 11
+
+Start TWRP (steps 1 to 3) and **Format Data**. Then install `lineage-18.1-20261023-UNOFFICIAL-cityman.zip` as in step 5, write `boot-20261023-cityman.img` as in step 6, and reboot. Both files are on the [Android 11 release](https://github.com/shrimpapplepro/android_device_msft_cityman/releases/tag/20261023-charging). Going back erases your data. We haven't tried this direction on our phone yet.
+
+### Building Android 13 yourself
+
+Build steps, the kernel and device changes Android 13 needed, and the patches outside this repo are in the [`lineage-20.0` branch README](https://github.com/shrimpapplepro/android_device_msft_cityman/tree/lineage-20.0#readme).
+
+---
+
 ## LineageOS 18.1 (Android 11) Port Status
 
 Device tree and hardware support for the Microsoft Lumia 950 XL (`cityman`) powered by Qualcomm Snapdragon 810 (MSM8994).
@@ -82,6 +182,8 @@ The list below comes from shadowofleaf96's original README. We haven't verified 
 
 ## Credits & Acknowledgments
 
+- **shadowofleaf96**: the cityman LineageOS 18.1 port (device, kernel, vendor) and the original installer.
 - **EpicLPer**: Heavy lifting in porting the TAS2552/3 speaker amplifier driver, Quaternary MI2S layout, and initial Sensors/NFC research for the Lumia 950 series.
-- **LineageOS & CAF**: Base Android 11 bringup and MSM8994 audio/display HAL infrastructure.
+- **LineageOS & CAF**: Base Android 11 and Android 13 bringup and MSM8994 audio/display HAL infrastructure.
+- **LineageOS-UL**: the lineage-20.0 manifest with the no-BPF patches that let Android 13 run on old kernels.
 - **LumiaWOA & Lumia Community**: Hardware documentation, ACPI tables, and schematics.
