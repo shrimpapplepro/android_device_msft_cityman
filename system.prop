@@ -52,7 +52,6 @@ ro.product.first_api_level=23
 # Without this, Play Store shows "device is not certified" due to test-keys and
 # unrecognized msft/cityman device identity.
 ro.build.fingerprint=google/redfin/redfin:11/RQ3A.211001.001/7641976:user/release-keys
-ro.build.tags=release-keys
 ro.product.brand=google
 ro.product.manufacturer=Google
 ro.product.model=Pixel 5
@@ -81,11 +80,9 @@ persist.sys.disable_rescue=true
 
 # Enable Rooted Debugging by default
 persist.sys.root_access=3
-ro.adb.secure=0
 
 # Display
 ro.opengles.version=196610
-ro.sf.lcd_density=515
 persist.hwc.mdpcomp.enable=true
 
 # DRM

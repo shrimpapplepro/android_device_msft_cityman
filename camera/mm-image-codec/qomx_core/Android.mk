@@ -17,4 +17,7 @@ LOCAL_SHARED_LIBRARIES := libcutils libdl liblog
 LOCAL_VENDOR_MODULE := true
 
 LOCAL_32_BIT_ONLY := true
+# clang 14 (Android 13) warnings this 2016 CAF code trips
+LOCAL_CFLAGS += -Wno-bitwise-instead-of-logical -Wno-unused-but-set-variable -Wno-unused-but-set-parameter -Wno-null-pointer-subtraction -Wno-unreachable-code-loop-increment
+
 include $(BUILD_SHARED_LIBRARY)

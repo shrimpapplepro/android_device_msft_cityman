@@ -19,7 +19,6 @@ PRODUCT_PACKAGES += \
     cityman-vk-fence \
     cityman-vk-mem \
     cityman-vk-cap \
-    cityman-vk-sfwin
 
 PRODUCT_COPY_FILES += \
     vendor/msft/cityman/proprietary/vendor/lib/hw/vulkan.msm8994.so:$(TARGET_COPY_OUT_VENDOR)/lib/vulkan.msm8994.so \
