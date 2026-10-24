@@ -211,6 +211,12 @@ void *sensor_open_lib(void) {
     /* Moto's 120fps HFR mode has min_fps == max_fps == 120; the OP2 daemon pairs that
      * min with the 30fps preview max and Snap dies on Range(120, 30). OP2 uses 10. */
     if (U32(o, 0x1c) == 2 /* HFR */) *(float *)(o + 0x14) = 10.0f;
+    /* Only full-size mode 0 is selectable. Snap ran ZSL and kept the sensor in
+     * mode 0 for preview and capture; a Camera2 app on the HAL1 legacy shim
+     * previews in a smaller mode and switches for the still, and that switch
+     * ends in a CAMIF error + vfe IOMMU fault (no photo). The smaller modes
+     * also have broken colours/3A and a different readout orientation. */
+    if (i != 0) U32(o, 0x1c) = 0;
   }
   memcpy(lib + OP2_MID, mot + MOT_MID, OP2_CHROMA - OP2_MID);
   for (int i = 0; i < N_RES; i++) {
