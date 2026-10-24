@@ -6,22 +6,23 @@ Unofficial LineageOS 20 for the Lumia 950 XL, built on the [LineageOS-UL](https:
 
 ### Status (tested on our phone)
 
-- **Works:** boot, display/touch, Wi-Fi (YouTube playback), Bluetooth (pairing and a BLE gamepad as input), audio playback, internal storage, rear camera (preview and full-resolution photos in Aperture, autofocus), USB adb.
+- **Works:** boot, display/touch, Wi-Fi (YouTube playback), Bluetooth (pairing and a BLE gamepad as input), audio playback, internal storage, rear camera (preview and full-resolution photos in Aperture, autofocus), USB adb, deep sleep with the screen off.
 - **Does not work yet:**
-  - **Cellular**: the modem stays off. The old `pm-proxy` blob crashes on 13, so the modem never gets its power vote. Bringing the modem up by hand froze the phone, so `pm-proxy` is disabled (set `persist.vendor.cityman.pm_proxy=1` to try it).
+  - **Cellular**: the modem stays off. The old `pm-proxy` blob crashes on 13, so the modem never gets its power vote. Bringing the modem up by hand froze the phone, so `pm-proxy` and `qmuxd` are disabled (set `persist.vendor.cityman.pm_proxy=1` to try it). With the modem off, `qmuxd` kept the phone from ever entering suspend; see `rootdir/etc/init.cityman.rc`.
   - **LineageOS recovery USB** (no adb/sideload). Use the installer's TWRP instead.
   - Front camera, rear flash (same as 18.1).
 - SELinux is permissive. Storage is unencrypted (the 3.10 kernel has no file-based encryption, and Android 13 dropped full-disk encryption).
 - Camera preview runs at about 15 fps, because the sensor stays in its full-size mode.
 
-### Install (wipes data)
+### Install
 
-Coming from 18.1 or Windows, set the phone up with [installer-cityman](https://github.com/shrimpapplepro/installer-cityman) first. Then:
+The full step-by-step guide, from Windows 10 Mobile or from TWRP, is in the [main README](https://github.com/shrimpapplepro/android_device_msft_cityman#how-to-install-android-13). In short:
 
-1. `fastboot boot twrp.img` (from the installer's `DATA` folder).
-2. In TWRP: **Wipe > Format Data** (required when coming from 18.1).
-3. `adb push lineage-20.0-*-cityman.zip /sdcard/` and install it in TWRP (or `adb shell twrp install /sdcard/<zip>`).
-4. If TWRP reboots straight after the install, write `boot.img` from the release with `dd` to the `boot` partition in TWRP, then reboot.
+1. Coming from Windows, set the phone up with [installer-cityman](https://github.com/shrimpapplepro/installer-cityman) and Android 11 first.
+2. `adb reboot bootloader`, then `fastboot boot twrp.img` (from the installer's `DATA` folder).
+3. Coming from 18.1: in TWRP, **Wipe > Format Data**.
+4. `adb push lineage-20.0-*-cityman.zip /sdcard/`, then `adb shell twrp install /sdcard/<zip>`.
+5. Write the release's boot image yourself, because TWRP can reboot before the zip does: `adb push <boot image> /tmp/`, then `adb shell dd if=/tmp/<boot image> of=/dev/block/platform/soc.0/f9824900.sdhci/by-name/boot`. Then `adb reboot`.
 
 ### What had to change for Android 13 on this kernel
 
