@@ -1,0 +1,26 @@
+From abeb4f0612028f83f6facbee1fb916b067e9c47a Mon Sep 17 00:00:00 2001
+From: shrimpapplepro <shrimpapplepro@users.noreply.github.com>
+Date: Fri, 23 Oct 2026 22:00:12 +0800
+Subject: [PATCH] msm8992: libbt-vendor: system/bt moved to
+ packages/modules/Bluetooth in 13
+
+---
+ msm8992/libbt-vendor/Android.mk | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/msm8992/libbt-vendor/Android.mk b/msm8992/libbt-vendor/Android.mk
+index 058d846..e7f9316 100644
+--- a/msm8992/libbt-vendor/Android.mk
++++ b/msm8992/libbt-vendor/Android.mk
+@@ -20,7 +20,7 @@ ifeq ($(BOARD_HAVE_BLUETOOTH_QCOM),true)
+ 
+ include $(CLEAR_VARS)
+ 
+-BDROID_DIR:= system/bt
++BDROID_DIR:= packages/modules/Bluetooth/system
+ 
+ LOCAL_SRC_FILES := \
+         src/bt_vendor_qcom.c \
+-- 
+2.34.1
+

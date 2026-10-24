@@ -1,0 +1,106 @@
+From b2d9197eb45cb70bccb858a5f740522cef5f45a1 Mon Sep 17 00:00:00 2001
+From: shrimpapplepro <shrimpapplepro@users.noreply.github.com>
+Date: Sat, 24 Oct 2026 13:15:39 +0800
+Subject: [PATCH] Bluetooth: make the stack work with an old BT 4.1 ROME
+ controller
+
+- hal: restore the vendor OGF in Command Complete/Status events; ROME
+  firmware echoes 0xfd57 (LE_ADV_FILTER) as 0x0157 and the HCI layer
+  aborts on the opcode mismatch
+- controller: honour bluetooth.core.le.disable_ll_privacy; the 4.1 chip
+  claims LL privacy but cannot use device privacy mode, so a bonded
+  peer advertising with its identity address never reconnects
+- BondStateMachine: do not NPE on nameless devices in the accessory
+  confirmation-skip check
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01NBB5BL4UEnzkGnA5sbtFRC
+---
+ .../bluetooth/btservice/BondStateMachine.java |  7 ++++--
+ system/gd/hal/hci_hal_android_hidl.cc         | 23 +++++++++++++++++++
+ system/gd/hci/controller.cc                   | 10 +++++++-
+ 3 files changed, 37 insertions(+), 3 deletions(-)
+
+diff --git a/android/app/src/com/android/bluetooth/btservice/BondStateMachine.java b/android/app/src/com/android/bluetooth/btservice/BondStateMachine.java
+index d3593ad..a02757b 100644
+--- a/android/app/src/com/android/bluetooth/btservice/BondStateMachine.java
++++ b/android/app/src/com/android/bluetooth/btservice/BondStateMachine.java
+@@ -400,9 +400,12 @@ final class BondStateMachine extends StateMachine {
+     };
+ 
+     private boolean isSkipConfirmationAccessory(BluetoothDevice device) {
++        // Nameless LE devices (e.g. a HID pad whose name does not fit in its
++        // advertisement) have a null name and must not crash the bond state machine.
++        BluetoothClass btClass = device.getBluetoothClass();
+         for (Pair<String, Integer> entry : accConfirmSkip) {
+-            if (device.getName().equals(entry.first)
+-                    && device.getBluetoothClass().getDeviceClass() == entry.second) {
++            if (entry.first.equals(device.getName())
++                    && btClass != null && btClass.getDeviceClass() == entry.second) {
+                 return true;
+             }
+         }
+diff --git a/system/gd/hal/hci_hal_android_hidl.cc b/system/gd/hal/hci_hal_android_hidl.cc
+index ffb75ff..7465c7e 100644
+--- a/system/gd/hal/hci_hal_android_hidl.cc
++++ b/system/gd/hal/hci_hal_android_hidl.cc
+@@ -98,12 +98,35 @@ class InternalHciCallbacks : public IBluetoothHciCallbacks {
+     if (common::init_flags::btaa_hci_is_enabled()) {
+       btaa_logger_->Capture(received_hci_packet, SnoopLogger::PacketType::EVT);
+     }
++    FixupVendorOpcode(received_hci_packet);
+     if (callback_ != nullptr) {
+       callback_->hciEventReceived(std::move(received_hci_packet));
+     }
+     return Void();
+   }
+ 
++  // Old Qualcomm ROME firmware echoes vendor-specific opcodes (OGF 0x3f)
++  // with the OGF bits cleared, e.g. 0x0157 for LE_ADV_FILTER (0xfd57).
++  // OGF 0 only holds the NOP opcode 0x0000, so any other OGF-0 opcode in a
++  // Command Complete/Status event can only be this bug; restore the OGF so
++  // the HCI layer matches it against the command it is waiting for.
++  static void FixupVendorOpcode(std::vector<uint8_t>& packet) {
++    size_t opcode_offset;
++    if (packet.size() >= 5 && packet[0] == 0x0e) {  // Command Complete
++      opcode_offset = 3;
++    } else if (packet.size() >= 6 && packet[0] == 0x0f) {  // Command Status
++      opcode_offset = 4;
++    } else {
++      return;
++    }
++    uint16_t opcode = packet[opcode_offset] | (packet[opcode_offset + 1] << 8);
++    if (opcode != 0 && (opcode >> 10) == 0) {
++      opcode |= 0x3f << 10;
++      packet[opcode_offset] = opcode & 0xff;
++      packet[opcode_offset + 1] = opcode >> 8;
++    }
++  }
++
+   Return<void> aclDataReceived(const hidl_vec<uint8_t>& data) override {
+     common::StopWatch stop_watch(GetTimerText(__func__, data));
+     std::vector<uint8_t> received_hci_packet(data.begin(), data.end());
+diff --git a/system/gd/hci/controller.cc b/system/gd/hci/controller.cc
+index 72cf8f5..1ec4bab 100644
+--- a/system/gd/hci/controller.cc
++++ b/system/gd/hci/controller.cc
+@@ -1003,7 +1003,15 @@ LOCAL_LE_FEATURE_ACCESSOR(SupportsBleExtendedReject, 2)
+ LOCAL_LE_FEATURE_ACCESSOR(SupportsBlePeripheralInitiatedFeaturesExchange, 3)
+ LOCAL_LE_FEATURE_ACCESSOR(SupportsBlePing, 4)
+ LOCAL_LE_FEATURE_ACCESSOR(SupportsBleDataPacketLengthExtension, 5)
+-LOCAL_LE_FEATURE_ACCESSOR(SupportsBlePrivacy, 6)
++// Some old controllers (e.g. BT 4.1 Qualcomm ROME) advertise LL privacy but
++// cannot switch a peer to device privacy mode, so a bonded peer that keeps
++// advertising with its identity address is filtered out by the resolving list
++// and never reconnects. Let such devices fall back to host-side resolution.
++bool Controller::SupportsBlePrivacy() const {
++  static const bool disabled =
++      os::GetSystemPropertyBool("bluetooth.core.le.disable_ll_privacy", false);
++  return !disabled && (GetLocalLeFeatures() & BIT(6));
++}
+ LOCAL_LE_FEATURE_ACCESSOR(SupportsBleExtendedScannerFilterPolicies, 7)
+ LOCAL_LE_FEATURE_ACCESSOR(SupportsBle2mPhy, 8)
+ LOCAL_LE_FEATURE_ACCESSOR(SupportsBleStableModulationIndexTx, 9)
+-- 
+2.34.1
+

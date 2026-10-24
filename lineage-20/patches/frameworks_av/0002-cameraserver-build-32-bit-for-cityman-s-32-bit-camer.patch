@@ -1,0 +1,33 @@
+From 99388707fa79a5087313f5e1b42e6064ef612020 Mon Sep 17 00:00:00 2001
+From: shrimpapplepro <shrimpapplepro@users.noreply.github.com>
+Date: Sat, 24 Oct 2026 13:43:02 +0800
+Subject: [PATCH] cameraserver: build 32-bit for cityman's 32-bit camera HAL
+
+The passthrough camera provider loads camera.msm8994.so into
+cameraserver, and that HAL only exists for 32-bit, so a 64-bit
+cameraserver found no camera module (-ENOENT) and reported 0 cameras.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01NBB5BL4UEnzkGnA5sbtFRC
+---
+ camera/cameraserver/Android.bp | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/camera/cameraserver/Android.bp b/camera/cameraserver/Android.bp
+index 8ca8920..1668963 100644
+--- a/camera/cameraserver/Android.bp
++++ b/camera/cameraserver/Android.bp
+@@ -47,7 +47,9 @@ cc_binary {
+         "android.hardware.camera.device@3.2",
+         "android.hardware.camera.device@3.4",
+     ],
+-    compile_multilib: "first",
++    // cityman: the msm8994 camera HAL is 32-bit only, and the passthrough
++    // provider loads it into cameraserver.
++    compile_multilib: "32",
+     cflags: [
+         "-Wall",
+         "-Wextra",
+-- 
+2.34.1
+

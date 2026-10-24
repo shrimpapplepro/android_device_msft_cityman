@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- .repo/local_manifests/cityman.xml for the LineageOS-UL lineage-20.0 manifest -->
+<manifest>
+  <remote name="gh" fetch="https://github.com/" />
+
+  <project name="shrimpapplepro/android_device_msft_cityman" path="device/msft/cityman" remote="gh" revision="lineage-20.0" />
+  <project name="shrimpapplepro/android_kernel_msft_cityman" path="kernel/msft/cityman" remote="gh" revision="lineage-20.0" clone-depth="1" />
+  <project name="shrimpapplepro/android_vendor_msft_cityman" path="vendor/msft/cityman" remote="gh" revision="lineage-20.0" clone-depth="1" />
+
+  <!-- msm8994 Bluetooth vendor lib (the msm8992 dir is used for msm8994) -->
+  <remove-project name="platform/hardware/qcom/bt" />
+  <project name="Android4Lumia950/android_hardware_qcom_bt" path="hardware/qcom/bt" remote="gh" revision="lineage-19.1" clone-depth="1" />
+
+  <!-- UL still pins AOSP libjpeg-turbo, but LineageOS dng_sdk needs Lineage's libjpeg with an sdk variant -->
+  <remove-project name="platform/external/libjpeg-turbo" />
+  <project path="external/libjpeg-turbo" name="LineageOS/android_external_libjpeg-turbo" remote="gh" revision="lineage-20.0" clone-depth="1" />
+</manifest>

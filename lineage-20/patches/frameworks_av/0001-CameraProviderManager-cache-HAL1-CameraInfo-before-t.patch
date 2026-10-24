@@ -1,0 +1,53 @@
+From 4846dda54d40811bade4b3225bb55afe6ff261a6 Mon Sep 17 00:00:00 2001
+From: shrimpapplepro <shrimpapplepro@users.noreply.github.com>
+Date: Wed, 21 Oct 2026 09:28:55 +0800
+Subject: [PATCH] CameraProviderManager: cache HAL1 CameraInfo before the flash
+ check
+
+DeviceInfo1 opens the device to read its flash modes and returned early
+when that open failed, before cacheCameraInfo(). mInfo was then left
+uninitialised and API1/legacy-API2 clients got a garbage sensor
+orientation (1 on cityman, where the camera daemon is still starting
+when cameraserver restarts), so Snap died with "Invalid rotation=1".
+getCameraInfo() needs no open device: cache it first.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01NBB5BL4UEnzkGnA5sbtFRC
+Change-Id: I2760a6b99d930fb167e3c31f71834691eb4d2dbe
+---
+ .../common/CameraProviderManager.cpp                 | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/services/camera/libcameraservice/common/CameraProviderManager.cpp b/services/camera/libcameraservice/common/CameraProviderManager.cpp
+index df83d10..65c950f 100644
+--- a/services/camera/libcameraservice/common/CameraProviderManager.cpp
++++ b/services/camera/libcameraservice/common/CameraProviderManager.cpp
+@@ -2340,6 +2340,12 @@ CameraProviderManager::ProviderInfo::DeviceInfo1::DeviceInfo1(const std::string&
+         sp<InterfaceT> interface) :
+         DeviceInfo(name, tagId, id, hardware::hidl_version{1, minorVersion},
+                    publicCameraIds, resourceCost, parentProvider) {
++    // getCameraInfo() needs no open device. Cache it first: if the flash-unit open
++    // below fails (camera daemon still starting), the early returns left mInfo
++    // uninitialised and apps saw a garbage sensor orientation.
++    if (cacheCameraInfo(interface) != OK) {
++        ALOGE("%s: Could not cache CameraInfo", __FUNCTION__);
++    }
+     // Get default parameters and initialize flash unit availability
+     // Requires powering on the camera device
+     hardware::Return<Status> status = interface->open(nullptr);
+@@ -2368,12 +2374,6 @@ CameraProviderManager::ProviderInfo::DeviceInfo1::DeviceInfo1(const std::string&
+         mHasFlashUnit = true;
+     }
+ 
+-    status_t res = cacheCameraInfo(interface);
+-    if (res != OK) {
+-        ALOGE("%s: Could not cache CameraInfo", __FUNCTION__);
+-        return;
+-    }
+-
+     ret = interface->close();
+     if (!ret.isOk()) {
+         ALOGE("%s: Transaction error closing camera device %s after check for a flash unit: %s",
+-- 
+2.34.1
+
