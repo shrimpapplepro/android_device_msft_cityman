@@ -143,8 +143,25 @@ PRODUCT_PACKAGES += \
     libbt-vendor \
     android.hardware.bluetooth@1.0-impl
 
-PRODUCT_DEFAULT_PROPERTY_OVERRIDES += \
+PRODUCT_VENDOR_PROPERTIES += \
     ro.bt.bdaddr_path=/persist/bdaddr.txt
+
+# 13 enables Bluetooth profiles only through these properties. The 4.1 ROME
+# controller cannot do device privacy mode, so resolve addresses on the host.
+PRODUCT_VENDOR_PROPERTIES += \
+    bluetooth.profile.a2dp.source.enabled=true \
+    bluetooth.profile.avrcp.target.enabled=true \
+    bluetooth.profile.bas.client.enabled=true \
+    bluetooth.profile.gatt.enabled=true \
+    bluetooth.profile.hfp.ag.enabled=true \
+    bluetooth.profile.hid.device.enabled=true \
+    bluetooth.profile.hid.host.enabled=true \
+    bluetooth.profile.map.server.enabled=true \
+    bluetooth.profile.opp.enabled=false \
+    bluetooth.profile.pan.nap.enabled=true \
+    bluetooth.profile.pan.panu.enabled=true \
+    bluetooth.profile.pbap.server.enabled=true \
+    bluetooth.core.le.disable_ll_privacy=true
 
 # Charger
 PRODUCT_PACKAGES += \
@@ -183,7 +200,7 @@ PRODUCT_PACKAGES += \
     android.hardware.memtrack@1.0-impl \
     android.hardware.memtrack@1.0-service
 
-PRODUCT_DEFAULT_PROPERTY_OVERRIDES += \
+PRODUCT_VENDOR_PROPERTIES += \
     debug.sf.disable_backpressure=1 \
     debug.sf.enable_gl_backpressure=1 \
     debug.sf.latch_unsignaled=1
@@ -364,10 +381,9 @@ PRODUCT_PACKAGES += \
 PRODUCT_BOOT_JARS += \
     telephony-ext
 
-PRODUCT_DEFAULT_PROPERTY_OVERRIDES += \
+PRODUCT_VENDOR_PROPERTIES += \
     persist.radio.snapshot_enabled=1 \
-    persist.radio.snapshot_timer=10 \
-    persist.sys.usb.config=adb
+    persist.radio.snapshot_timer=10
     
 # Shims
 PRODUCT_PACKAGES += \
@@ -413,7 +429,7 @@ PRODUCT_PACKAGES += \
     android.hardware.usb@1.0-service.basic
 
 # OEM Unlock reporting
-PRODUCT_DEFAULT_PROPERTY_OVERRIDES += \
+PRODUCT_VENDOR_PROPERTIES += \
     ro.oem_unlock_supported=1
 
 # Vibrator HAL — qpnp-haptic timed_output (/sys/class/timed_output/vibrator/enable)
