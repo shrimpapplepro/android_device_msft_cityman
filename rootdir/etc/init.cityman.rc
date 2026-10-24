@@ -355,6 +355,7 @@ service qmuxd /vendor/bin/qmuxd
     class main
     user root
     group radio audio bluetooth wakelock gps nfc
+    disabled
 
 service perfd /vendor/bin/perfd
     class main
@@ -393,6 +394,12 @@ service per_proxy /vendor/bin/pm-proxy
 # has. Not started until the modem bring-up is redone; the modem stays off.
 on property:init.svc.per_mgr=running && property:persist.vendor.cityman.pm_proxy=1
     start per_proxy
+
+# With the modem off, qmuxd re-opens smdcntl0 (DATA5_CNTL) every 20 s. The
+# suspend freezer interrupts that wait, the failed open sends a uevent, and
+# the health HAL's EPOLLWAKEUP netlink socket aborts every suspend attempt.
+on property:persist.vendor.cityman.pm_proxy=1
+    start qmuxd
 
 on property:sys.shutdown.requested=*
     stop per_proxy
