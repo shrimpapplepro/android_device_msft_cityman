@@ -62,7 +62,6 @@
 #define HANDLE_ACCEL 7
 #define HANDLE_GYRO 8
 #define HANDLE_TEMP 9
-#define HANDLE_ORIENTATION 10 // Ajout du handle d'orientation
 #define N_SENSORS 12
 
 #define IMU_NONE 0
@@ -311,23 +310,6 @@ static const struct sensor_t k_list[] = {
         .requiredPermission = "",
         .maxDelay = 200000,
         .flags = SENSOR_FLAG_CONTINUOUS_MODE,
-    },
-    {
-        .name = "Device Orientation Sensor",
-        .vendor = "Cityman Virtual",
-        .version = 1,
-        .handle = HANDLE_ORIENTATION,
-        .type = SENSOR_TYPE_DEVICE_ORIENTATION,
-        .maxRange = 3.0f,
-        .resolution = 1.0f,
-        .power = 0.0f,
-        .minDelay = 0,
-        .fifoReservedEventCount = 0,
-        .fifoMaxEventCount = 0,
-        .stringType = SENSOR_STRING_TYPE_DEVICE_ORIENTATION,
-        .requiredPermission = "",
-        .maxDelay = 0,
-        .flags = SENSOR_FLAG_ON_CHANGE_MODE,
     }};
 
 static const struct sensor_t k_accel = {
